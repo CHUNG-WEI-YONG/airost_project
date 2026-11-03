@@ -1,0 +1,13 @@
+{% extends "basic.html" %}
+
+{% block title %}Account created | ClubSpace{% endblock %}
+
+{% block content %}
+<section class="card success-card">
+    <div class="success-icon">✓</div>
+    <p class="eyebrow">ACCOUNT READY</p>
+    <h1>You’re signed in</h1>
+    <p class="intro">Your account was created successfully.</p>
+    <a class="button-link" href="{% url 'signup' %}">Continue</a>
+</section>
+{% endblock %}
