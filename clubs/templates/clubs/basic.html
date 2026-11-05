@@ -5,19 +5,18 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}ClubSpace{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="stylesheet" href="{% static 'clubs/style.css' %}">
 </head>
 <body>
     <header class="topbar">
-        <a class="brand" href="{% url 'signup' %}">ClubSpace</a>
+        <a class="brand" href="{% url 'club_dashboard' %}">ClubSpace</a>
         <span class="topbar-note">Club finances, made clearer</span>
         {% if user.is_authenticated %}
+            <a href="{% url 'club_dashboard' %}">My clubs</a>
             <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
+                {% csrf_token %}
                 <button class="logout-button" type="submit">Log out</button>
             </form>
-        {% else %}
-            <a href="{% url 'login' %}">Log in</a>
         {% endif %}
     </header>
 

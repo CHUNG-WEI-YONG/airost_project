@@ -1,0 +1,37 @@
+{% extends "clubs/basic.html" %}
+
+{% block title %}My Clubs{% endblock %}
+
+{% block content %}
+<main class="dashboard">
+    <section class="dashboard-heading">
+        <div>
+            <p class="eyebrow">YOUR WORKSPACE</p>
+            <h1>My clubs</h1>
+            <p class="intro">Your clubs and your role in each one.</p>
+        </div>
+        <a class="primary-button" href="{% url 'create_club' %}">+ Create a club</a>
+    </section>
+
+{% if memberships %}
+    <section class="club-grid">
+    {% for membership in memberships %}
+        <a class="club-card" href="{% url 'club_details' membership.club.id %}">
+            <span class="club-icon">{{ membership.club.name|first|upper }}</span>
+            <span class="club-card-info">
+                <strong>{{ membership.club.name }}</strong>
+                <small>{{ membership.get_role_display }}</small>
+            </span>
+            <span class="club-arrow">→</span>
+        </a>
+    {% endfor %}
+    </section>
+{% else %}
+    <section class="empty-card">
+        <h2>No clubs yet</h2>
+        <p>Create a club to start managing its members and finances.</p>
+        <a class="primary-button" href="{% url 'create_club' %}">Create your first club</a>
+    </section>
+{% endif %}
+</main>
+{% endblock %}

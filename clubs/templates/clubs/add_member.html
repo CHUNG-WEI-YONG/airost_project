@@ -1,0 +1,43 @@
+{% extends "clubs/basic.html" %} {% block title %}Add Member | {{ club.name }}{%endblock %} {% block content %}
+<main class="club-detail">
+  <a class="back-link" href="{% url 'club_details' club.id %}"
+    >← Back to {{ club.name }}</a
+  >
+
+  <section class="club-banner">
+    <div class="club-mark">{{ club.name|first|upper }}</div>
+    <div class="club-title">
+      <p class="eyebrow">CLUB MANAGEMENT</p>
+      <h1>Add Member</h1>
+      <p class="intro">
+        They must already have an account registered on ClubSpace.
+      </p>
+    </div>
+  </section>
+
+  <section class="club-panel">
+    <p class="eyebrow">MEMBER DETAILS</p>
+    <h2>Invite a new member</h2>
+
+    <form method="post" class="club-form">
+      {% csrf_token %} {% if form.non_field_errors %}
+      <div class="form-errors">{{ form.non_field_errors }}</div>
+      {% endif %} {% for field in form %}
+      <div class="form-group">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }} {% if field.errors %}
+        <div class="field-errors">{{ field.errors }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <div class="form-actions">
+        <button type="submit" class="button-primary">Add member</button>
+        <a class="button-link secondary" href="{% url 'club_details' club.id %}"
+          >Cancel</a
+        >
+      </div>
+    </form>
+  </section>
+</main>
+{% endblock %}

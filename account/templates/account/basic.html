@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}ClubSpace{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'account/style.css' %}">
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{% url 'home' %}">ClubSpace</a>
+        <span class="topbar-note">Club finances, made clearer</span>
+        {% if user.is_authenticated %}
+            <a href="{% url 'club_dashboard' %}">My clubs</a>
+            <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+                <button class="logout-button" type="submit">Log out</button>
+            </form>
+        {% else %}
+            <a href="{% url 'login' %}">Log in</a>
+        {% endif %}
+    </header>
+
+    <main class="page">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

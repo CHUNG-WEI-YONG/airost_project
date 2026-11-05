@@ -1,12 +1,12 @@
-{% extends "basic.html" %}
+{% extends "account/basic.html" %}
 
-{% block title %}Create account | ClubSpace{% endblock %}
+{% block title %}Log in | ClubSpace{% endblock %}
 
 {% block content %}
 <section class="card">
-    <p class="eyebrow">GET STARTED</p>
-    <h1>Create your account</h1>
-    <p class="intro">Join a club or start managing one of your own.</p>
+    <p class="eyebrow">WELCOME BACK</p>
+    <h1>Log in</h1>
+    <p class="intro">Enter the username and password for your account.</p>
 
     <form method="post">
         {% csrf_token %}
@@ -26,7 +26,11 @@
             </div>
         {% endfor %}
 
-        <button type="submit">Create account</button>
+        <button type="submit">Log in</button>
     </form>
+
+    <p class="intro">
+        New here? <a href="{% url 'signup' %}">Create an account</a>
+    </p>
 </section>
 {% endblock %}

@@ -1,0 +1,31 @@
+{% extends "clubs/basic.html" %}
+
+{% block title %}Create a club | ClubSpace{% endblock %}
+
+{% block content %}
+<section class="form-card">
+    <p class="eyebrow">NEW CLUB</p>
+    <h1>Create a club</h1>
+    <p class="intro">You will become this club’s President.</p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for field in form %}
+            <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}
+                    <p class="error">{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        {% for error in form.non_field_errors %}
+            <p class="error">{{ error }}</p>
+        {% endfor %}
+
+        <button type="submit">Create club</button>
+    </form>
+</section>
+{% endblock %}
