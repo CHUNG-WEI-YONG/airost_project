@@ -69,7 +69,7 @@ def add_member(request,club_id):
 @login_required
 def club_expenses(request,club_id):
     membership=get_object_or_404(Membership.objects.select_related("club"),club_id=club_id,user=request.user)
-    return render(request,'clubs/expenses.html',{"membership":membership,"club":membership.club})
+    return render(request,'clubs/club_expenses.html',{"membership":membership,"club":membership.club})
 
     
 

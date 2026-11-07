@@ -1,0 +1,46 @@
+{% extends "clubs/basic.html" %}
+
+{% block title %}Finance | {{ club.name }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'finance/style.css' %}">
+<main class="club-workspace">
+    <a class="back-link" href="{% url 'club_details' club.id %}">
+        ← Back to {{ club.name }}
+    </a>
+
+    <header class="finance-heading">
+        <p class="eyebrow">{{ club.name }} · FINANCE</p>
+        <h1>Expense requests</h1>
+        <p class="intro">Signed in as {{ membership.get_role_display }}.</p>
+    </header>
+
+    {% for item in finance_requests %}
+        <article class="finance-request-card">
+            <div>
+                <p class="eyebrow">
+                    {{ item.get_category_display }}
+                    · {{ item.expenses_at|date:"M j, Y" }}
+                </p>
+
+                <h2>{{ item.title }}</h2>
+                <p>{{ item.description|truncatewords:24 }}</p>
+
+                {% if membership.role != "member" %}
+                    <p>Submitted by: {{ item.submitted_by.email }}</p>
+                {% endif %}
+            </div>
+
+            <div class="request-summary">
+                <strong>{{ item.amount|floatformat:2 }}</strong>
+                <span class="role-badge">{{ item.get_status_display }}</span>
+            </div>
+        </article>
+    {% empty %}
+        <section class="expense-empty">
+            <h2>No expense requests yet</h2>
+            <p>Requests for {{ club.name }} will appear here.</p>
+        </section>
+    {% endfor %}
+</main>
+{% endblock %}
