@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from clubs.models import Club
-
+from django import forms
 # Create your models here.
 
 class ExpenseRequest(models.Model):
@@ -54,3 +54,5 @@ class ExpenseRequest(models.Model):
 
     def __str__(self):
         return f"{self.title} -{self.club.name}"
+
+

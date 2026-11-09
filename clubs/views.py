@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 
+
 from .forms import ClubForm,AddMemberForm
 from .models import Club , Membership
 
@@ -19,7 +20,7 @@ def create_club(request):
                     role=Membership.Role.PRESIDENT,
                 )
 
-            return redirect("club_details", club_id=club.id)
+            return redirect("finance:dashboard", club_id=club.id)
     else:
         form = ClubForm()
 
@@ -54,24 +55,22 @@ def club_dashboard(request):
 def add_member(request,club_id):
     club=get_object_or_404(Club,id=club_id)
 
-    get_object_or_404(Membership,club=club,user=request.user,role=Membership.Role.PRESIDENT)
+    get_object_or_404(
+        Membership,
+        club=club,
+        user=request.user,
+        role=Membership.Role.PRESIDENT,
+    )
 
     form=AddMemberForm(data=request.POST if request.method == "POST" else None,
         club=club,)
 
     if request.method =='POST' and form.is_valid():
         form.save()
-        return redirect("club_details",club_id)
+        return redirect("club_details", club_id=club.id)
 
-    else:
-        return render(request,"clubs/add_member.html",{'form':form,"club":club})
+    return render(request, "clubs/add_member.html", {"form": form, "club": club})
 
-@login_required
-def club_expenses(request,club_id):
-    membership=get_object_or_404(Membership.objects.select_related("club"),club_id=club_id,user=request.user)
-    return render(request,'clubs/club_expenses.html',{"membership":membership,"club":membership.club})
-
-    
 
 
 

@@ -1,18 +1,18 @@
-{% extends "clubs/basic.html" %}
+{% extends "finance/base.html" %}
 
 {% block title %}Finance | {{ club.name }}{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'finance/style.css' %}">
-<main class="club-workspace">
-    <a class="back-link" href="{% url 'club_details' club.id %}">
-        ← Back to {{ club.name }}
-    </a>
-
+<section class="club-workspace">
     <header class="finance-heading">
         <p class="eyebrow">{{ club.name }} · FINANCE</p>
         <h1>Expense requests</h1>
         <p class="intro">Signed in as {{ membership.get_role_display }}.</p>
+
+        <a class="finance-submit-button"
+            href="{% url 'finance:expense_create' club_id=club.id %}">
+            + Submit expense
+        </a>
     </header>
 
     {% for item in finance_requests %}
@@ -41,6 +41,27 @@
             <h2>No expense requests yet</h2>
             <p>Requests for {{ club.name }} will appear here.</p>
         </section>
+
+    {% if item.status == "pending" and membership.role != "member" %}
+    <form method="post"
+          action="{% url 'finance:review_expense' club_id=club.id expense_id=item.id %}">
+        {% csrf_token %}
+
+        <label for="comment-{{ item.id }}">Review comment</label>
+        <textarea id="comment-{{ item.id }}" name="reviewed_comment"></textarea>
+
+        <button type="submit" name="decision" value="approved">Approve</button>
+        <button type="submit" name="decision" value="rejected">Reject</button>
+    </form>
+    {% endif %}
     {% endfor %}
-</main>
+
+    {% if item.receipt %}
+    <a href="{{ item.receipt.url }}" target="_blank" rel="noopener">
+        View receipt
+    </a>
+{% endif %}
+
+
+</section>
 {% endblock %}

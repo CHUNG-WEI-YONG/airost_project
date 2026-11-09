@@ -1,0 +1,74 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Finance{% endblock %} | BudgetAI</title>
+    <link rel="stylesheet" href="{% static 'finance/style.css' %}">
+</head>
+<body>
+    <div class="finance-shell">
+        <aside class="finance-sidebar">
+            <a class="finance-brand" href="{% url 'club_dashboard' %}">
+                BudgetAI
+            </a>
+
+            <div class="current-club">
+                <span class="club-icon">{{ club.name|first|upper }}</span>
+                <div>
+                    <strong>{{ club.name }}</strong>
+                    <small>{{ membership.get_role_display }}</small>
+                </div>
+            </div>
+
+            <nav class="finance-nav" aria-label="Finance navigation">
+                <a class="sidebar-link active"
+                   href="{% url 'finance:dashboard' club_id=club.id %}">
+                    Overview
+                </a>
+
+                <span class="sidebar-link coming-soon">Expense history</span>
+                <span class="sidebar-link coming-soon">Budget</span>
+                <span class="sidebar-link coming-soon">Reports</span>
+                <span class="sidebar-link coming-soon">AI assistant</span>
+
+                <a class="sidebar-link"
+                   href="{% url 'club_details' club.id %}">
+                    Club members
+                </a>
+            </nav>
+
+            <a class="back-to-clubs" href="{% url 'club_dashboard' %}">
+                ← My clubs
+            </a>
+        </aside>
+
+        <div class="finance-main">
+            <header class="finance-topbar">
+                <span>{{ club.name }} finance workspace</span>
+
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit">Log out</button>
+                </form>
+            </header>
+
+            <main class="finance-content">
+                {% block content %}
+                    <main class="finance-content">
+                {% if messages %}
+                        <div class="message-list" aria-live="polite">
+                            {% for message in messages %}
+                                <div class="message message-{{ message.tags }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endblock %}
+            </main>
+        </div>
+    </div>
+</body>
+</html>

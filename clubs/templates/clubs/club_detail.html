@@ -1,6 +1,6 @@
 {% extends "clubs/basic.html" %}
 
-{% block title %}{{ membership.club.name }} | ClubSpace{% endblock %}
+{% block title %}{{ membership.club.name }} members | BudgetAI{% endblock %}
 
 {% block content %}
 <main class="club-workspace">
@@ -8,32 +8,12 @@
 
     <section class="club-banner">
         <div class="club-mark">{{ membership.club.name|first|upper }}</div>
-
         <div class="club-title">
-            <p class="eyebrow">CLUB WORKSPACE</p>
-            <h1>{{ membership.club.name }}</h1>
-            <p class="intro">
-                {{ membership.club.description|default:"Manage your club's finances and members in one place." }}
-            </p>
+            <p class="eyebrow">CLUB MANAGEMENT</p>
+            <h1>{{ membership.club.name }} members</h1>
+            <p class="intro">Manage the people and roles in this club.</p>
         </div>
-
         <span class="role-badge">{{ membership.get_role_display }}</span>
-    </section>
-
-    <section class="finance-hero">
-        <div class="finance-copy">
-            <p class="eyebrow">CLUB FINANCES</p>
-            <h2>Expense requests</h2>
-            <p>
-                Submit and review club expenses, with receipts and decisions
-                kept together for your club.
-            </p>
-        </div>
-
-        <a class="button-primary"
-           href="{% url 'club_expenses' membership.club.id %}">
-            Open expenses <span aria-hidden="true">→</span>
-        </a>
     </section>
 
     <section class="team-card">
@@ -42,10 +22,8 @@
                 <p class="eyebrow">PEOPLE</p>
                 <h2>Club members</h2>
             </div>
-
             {% if membership.role == "president" %}
-                <a class="button-secondary"
-                   href="{% url 'add_member' membership.club.id %}">
+                <a class="button-secondary" href="{% url 'add_member' membership.club.id %}">
                     + Add member
                 </a>
             {% endif %}
@@ -54,9 +32,7 @@
         <ul class="member-list">
             {% for member in members %}
                 <li class="member-row">
-                    <div class="member-avatar">
-                        {{ member.user.email|first|upper }}
-                    </div>
+                    <div class="member-avatar">{{ member.user.email|first|upper }}</div>
                     <span class="member-email">{{ member.user.email }}</span>
                     <span class="role-badge">{{ member.get_role_display }}</span>
                 </li>

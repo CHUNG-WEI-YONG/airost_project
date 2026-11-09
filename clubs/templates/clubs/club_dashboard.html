@@ -1,6 +1,6 @@
 {% extends "clubs/basic.html" %}
 
-{% block title %}My Clubs{% endblock %}
+{% block title %}My Clubs | BudgetAI{% endblock %}
 
 {% block content %}
 <main class="dashboard">
@@ -16,7 +16,7 @@
 {% if memberships %}
     <section class="club-grid">
     {% for membership in memberships %}
-        <a class="club-card" href="{% url 'club_details' membership.club.id %}">
+        <a class="club-card" href="{% url 'finance:dashboard' club_id=membership.club.id %}">
             <span class="club-icon">{{ membership.club.name|first|upper }}</span>
             <span class="club-card-info">
                 <strong>{{ membership.club.name }}</strong>
