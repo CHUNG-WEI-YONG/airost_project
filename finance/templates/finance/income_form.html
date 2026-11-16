@@ -1,0 +1,39 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Record club funds | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="finance-form-card">
+    <a class="back-link"
+       href="{% url 'finance:dashboard' club_id=club.id %}">
+        ← Back to {{ club.name }} finance
+    </a>
+
+    <p class="eyebrow">{{ club.name }} · FINANCE</p>
+    <h1>Record club funds</h1>
+    <p class="intro">Record money received by the club.</p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for error in form.non_field_errors %}
+            <p class="form-error">{{ error }}</p>
+        {% endfor %}
+
+        {% for field in form %}
+            <div class="finance-form-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+
+                {% for error in field.errors %}
+                    <p class="form-error">{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <button class="finance-submit-button" type="submit">
+            Record funds
+        </button>
+    </form>
+</section>
+{% endblock %}

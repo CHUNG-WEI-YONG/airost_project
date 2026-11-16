@@ -27,14 +27,26 @@
                    href="{% url 'finance:dashboard' club_id=club.id %}">
                     Overview
                 </a>
+                <a class="sidebar-link"
+                    href="{% url 'finance:notifications' club_id=club.id %}">
+                    Notifications
+                </a>
 
-                <span class="sidebar-link coming-soon">Expense history</span>
+                <a class="sidebar-link"
+                href="{% url 'finance:transaction' club_id=club.id %}">
+                    Transaction history
+                </a>
                 <span class="sidebar-link coming-soon">Budget</span>
+                {% if membership.role == "president" %}
+                    <a class="sidebar-link"
+                        href="{% url 'finance:approval_limit' club_id=club.id %}">
+                    Approval limit
+                    </a>
+                {% endif %}
                 <span class="sidebar-link coming-soon">Reports</span>
                 <span class="sidebar-link coming-soon">AI assistant</span>
 
-                <a class="sidebar-link"
-                   href="{% url 'club_details' club.id %}">
+                <a class="sidebar-link" href="{% url 'club_details' club.id %}">
                     Club members
                 </a>
             </nav>
@@ -55,19 +67,19 @@
             </header>
 
             <main class="finance-content">
-                {% block content %}
-                    <main class="finance-content">
                 {% if messages %}
-                        <div class="message-list" aria-live="polite">
-                            {% for message in messages %}
-                                <div class="message message-{{ message.tags }}">
-                                    {{ message }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% endif %}
-                {% endblock %}
+                    <div class="message-list" aria-live="polite">
+                        {% for message in messages %}
+                            <div class="message message-{{ message.tags }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
             </main>
+            \
         </div>
     </div>
 </body>

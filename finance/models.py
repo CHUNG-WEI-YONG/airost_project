@@ -55,4 +55,77 @@ class ExpenseRequest(models.Model):
     def __str__(self):
         return f"{self.title} -{self.club.name}"
 
+class MoneyTransaction(models.Model):
+    class Type(models.TextChoices):
+        INCOME="income","Money In"
+        EXPENSE="expense","money out"
+
+    club=models.ForeignKey(
+        Club,
+        on_delete=models.CASCADE,
+        related_name="money_transaction"
+    )
+
+    expense_request=models.OneToOneField(
+        ExpenseRequest,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="money_transaction"
+    )
+
+    recorded_by=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="recorded_transaction"
+    )
+
+    transaction_type=models.TextField(
+        max_length=10,
+        choices=Type.choices
+    )
+
+    amount=models.DecimalField(
+        decimal_places=2,
+        max_digits=10
+    )
+
+    description=models.CharField(max_length=20)
+    transaction_date=models.DateField()
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering=["-transaction_date","-created_at"]
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()}: {self.amount}"
+
+
+class FinanceNotification(models.Model):
+    recepient=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="finance_notifications"
+    )
+
+    request=models.ForeignKey(
+        ExpenseRequest,
+        on_delete=models.CASCADE,
+        related_name="notifications"
+    )
+
+    message=models.CharField(max_length=100)
+    created_at=models.DateTimeField(auto_now_add=True)
+    is_read=models.BooleanField(default=True)
+
+    class Meta:
+        ordering=["-created_at"]
+
+    def __str__(self):
+        return f"Notification for {self.recipient}"
+
+
+
+
+
 

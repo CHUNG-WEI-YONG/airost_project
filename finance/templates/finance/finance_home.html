@@ -3,65 +3,119 @@
 {% block title %}Finance | {{ club.name }}{% endblock %}
 
 {% block content %}
-<section class="club-workspace">
-    <header class="finance-heading">
-        <p class="eyebrow">{{ club.name }} · FINANCE</p>
-        <h1>Expense requests</h1>
-        <p class="intro">Signed in as {{ membership.get_role_display }}.</p>
+<section class="finance-dashboard">
+    <header class="finance-page-heading">
+        <div>
+            <p class="eyebrow">{{ club.name }} · FINANCE</p>
+            <h1>Expense requests</h1>
+            <p class="intro">Signed in as {{ membership.get_role_display }}.</p>
+        </div>
+
+        {% if membership.role == "president" %}
+            <a class="finance-submit-button"
+            href="{% url 'finance:record_income' club_id=club.id %}">
+                + Record club funds
+            </a>
+        {% endif %}
 
         <a class="finance-submit-button"
-            href="{% url 'finance:expense_create' club_id=club.id %}">
+           href="{% url 'finance:expense_create' club_id=club.id %}">
             + Submit expense
         </a>
     </header>
 
-    {% for item in finance_requests %}
-        <article class="finance-request-card">
-            <div>
-                <p class="eyebrow">
-                    {{ item.get_category_display }}
-                    · {{ item.expenses_at|date:"M j, Y" }}
-                </p>
+    <div class="expense-list">
+        {% for item in finance_requests %}
+            <article class="expense-card">
+                <div class="expense-card-header">
+                    <p class="expense-meta">
+                        {{ item.get_category_display }}
+                        <span>·</span>
+                        {{ item.expenses_at|date:"M j, Y" }}
+                    </p>
 
-                <h2>{{ item.title }}</h2>
-                <p>{{ item.description|truncatewords:24 }}</p>
+                    <span class="status-pill status-{{ item.status }}">
+                        {{ item.get_status_display }}
+                    </span>
+                </div>
 
-                {% if membership.role != "member" %}
-                    <p>Submitted by: {{ item.submitted_by.email }}</p>
+                <div class="expense-card-content">
+                    <div class="expense-details">
+                        <h2>{{ item.title }}</h2>
+                        <p>{{ item.description|truncatewords:30 }}</p>
+
+                        {% if membership.role != "member" %}
+                            <p class="submitted-by">
+                                Submitted by {{ item.submitted_by.email }}
+                            </p>
+                        {% endif %}
+
+                        {% if item.receipt %}
+                            <a class="receipt-link"
+                               href="{{ item.receipt.url }}"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                View receipt ↗
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    {% if item.status == "pending" and item.submitted_by == request.user %}
+                        <form method="post"
+                            action="{% url 'finance:cancel_expense' club_id=club.id expense_id=item.id %}">
+                            {% csrf_token %}
+                            <button class="decision-button reject-button" type="submit">
+                                Cancel my request
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <div class="expense-amount">
+                        <span>Amount</span>
+                        <strong>{{ item.amount|floatformat:2 }}</strong>
+                    </div>
+                </div>
+
+                {% if item.status == "pending" and membership.role != "member" %}
+                    <form class="review-panel"
+                          method="post"
+                          action="{% url 'finance:review_expense' club_id=club.id expense_id=item.id %}">
+                        {% csrf_token %}
+
+                        <div class="review-field">
+                            <label for="comment-{{ item.id }}">
+                                Review comment <span>(optional)</span>
+                            </label>
+                            <textarea id="comment-{{ item.id }}"
+                                      name="reviewed_comment"
+                                      rows="2"
+                                      placeholder="Add a note about your decision"></textarea>
+                        </div>
+
+                        <div class="review-actions">
+                            <button class="decision-button reject-button"
+                                    type="submit"
+                                    name="decision"
+                                    value="rejected">
+                                Reject
+                            </button>
+
+                            <button class="decision-button approve-button"
+                                    type="submit"
+                                    name="decision"
+                                    value="approved">
+                                Approve request
+                            </button>
+                        </div>
+                    </form>
                 {% endif %}
-            </div>
-
-            <div class="request-summary">
-                <strong>{{ item.amount|floatformat:2 }}</strong>
-                <span class="role-badge">{{ item.get_status_display }}</span>
-            </div>
-        </article>
-    {% empty %}
-        <section class="expense-empty">
-            <h2>No expense requests yet</h2>
-            <p>Requests for {{ club.name }} will appear here.</p>
-        </section>
-
-    {% if item.status == "pending" and membership.role != "member" %}
-    <form method="post"
-          action="{% url 'finance:review_expense' club_id=club.id expense_id=item.id %}">
-        {% csrf_token %}
-
-        <label for="comment-{{ item.id }}">Review comment</label>
-        <textarea id="comment-{{ item.id }}" name="reviewed_comment"></textarea>
-
-        <button type="submit" name="decision" value="approved">Approve</button>
-        <button type="submit" name="decision" value="rejected">Reject</button>
-    </form>
-    {% endif %}
-    {% endfor %}
-
-    {% if item.receipt %}
-    <a href="{{ item.receipt.url }}" target="_blank" rel="noopener">
-        View receipt
-    </a>
-{% endif %}
-
-
+            </article>
+        {% empty %}
+            <section class="expense-empty">
+                <h2>No expense requests yet</h2>
+                <p>Requests for {{ club.name }} will appear here.</p>
+            </section>
+        {% endfor %}
+    </div>
 </section>
 {% endblock %}

@@ -1,0 +1,27 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Notifications | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="finance-dashboard">
+    <header class="finance-page-heading">
+        <div>
+            <p class="eyebrow">{{ club.name }} · FINANCE</p>
+            <h1>Notifications</h1>
+            <p class="intro">Updates about expense requests in this club.</p>
+        </div>
+    </header>
+
+    {% for notification in notifications %}
+        <article class="expense-card">
+            <p>{{ notification.message }}</p>
+            <small>{{ notification.created_at|date:"M j, Y, g:i a" }}</small>
+        </article>
+    {% empty %}
+        <section class="expense-empty">
+            <h2>No notifications yet</h2>
+            <p>Updates about requests will appear here.</p>
+        </section>
+    {% endfor %}
+</section>
+{% endblock %}

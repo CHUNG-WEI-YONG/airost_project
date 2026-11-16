@@ -1,0 +1,49 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Approval limit | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="finance-form-card">
+    <a class="back-link"
+       href="{% url 'finance:dashboard' club_id=club.id %}">
+        ← Back to {{ club.name }} finance
+    </a>
+
+    <p class="eyebrow">{{ club.name }} · FINANCE SETTINGS</p>
+    <h1>Treasurer approval limit</h1>
+
+    <p class="intro">
+        Treasurers can approve requests up to this amount.
+        Requests above it must be reviewed by the president.
+    </p>
+
+    <div class="current-limit">
+        <span>Current limit</span>
+        <strong>{{ club.transaction_approval_limit|floatformat:2 }}</strong>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for error in form.non_field_errors %}
+            <p class="form-error">{{ error }}</p>
+        {% endfor %}
+
+        <div class="finance-form-field">
+            <label for="{{ form.transaction_approval_limit.id_for_label }}">
+                Maximum amount a treasurer can approve
+            </label>
+
+            {{ form.transaction_approval_limit }}
+
+            {% for error in form.transaction_approval_limit.errors %}
+                <p class="form-error">{{ error }}</p>
+            {% endfor %}
+        </div>
+
+        <button class="finance-submit-button" type="submit">
+            Save approval limit
+        </button>
+    </form>
+</section>
+{% endblock %}

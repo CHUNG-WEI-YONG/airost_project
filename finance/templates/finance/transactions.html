@@ -1,0 +1,121 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Transaction history | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="transaction-page">
+    <header class="transaction-heading">
+        <div>
+            <p class="eyebrow">{{ club.name }} · FINANCE</p>
+            <h1>Transaction history</h1>
+            <p class="intro">Money recorded for this club.</p>
+        </div>
+
+        <a class="transaction-back-link"
+           href="{% url 'finance:dashboard' club_id=club.id %}">
+            ← Back to overview
+        </a>
+    </header>
+
+    <div class="transaction-summary-grid">
+        <article class="transaction-summary-card">
+            <span>Total money in</span>
+            <strong>{{ total_income|floatformat:2 }}</strong>
+        </article>
+
+        <article class="transaction-summary-card">
+            <span>Total money out</span>
+            <strong>{{ total_out|floatformat:2 }}</strong>
+        </article>
+
+        <article class="transaction-summary-card balance-card">
+            <span>Current balance</span>
+            <strong>{{ balance|floatformat:2 }}</strong>
+        </article>
+    </div>
+
+    {% if transactions %}
+        <section class="transaction-panel">
+            <div class="transaction-panel-heading">
+                <div>
+                    <h2>All transactions</h2>
+                    <p>Approved expenses appear here as money out.</p>
+                </div>
+                <span class="transaction-count">
+                    {{ transactions|length }} record{{ transactions|length|pluralize }}
+                </span>
+            </div>
+
+            <div class="transaction-table-scroll">
+                <table class="transaction-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Type</th>
+                            <th>Recorded by</th>
+                            <th class="amount-heading">Money in</th>
+                            <th class="amount-heading">Money out</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                            <tr>
+                                <td class="transaction-date">
+                                    {{ transaction.transaction_date|date:"M j, Y" }}
+                                </td>
+
+                                <td class="transaction-description">
+                                    {{ transaction.description }}
+                                </td>
+
+                                <td>
+                                    {% if transaction.transaction_type == "income" %}
+                                        <span class="transaction-type income">
+                                            {{ transaction.get_transaction_type_display }}
+                                        </span>
+                                    {% else %}
+                                        <span class="transaction-type expense">
+                                            {{ transaction.get_transaction_type_display }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="transaction-recorder">
+                                    {{ transaction.recorded_by.email }}
+                                </td>
+
+                                <td class="money-in">
+                                    {% if transaction.transaction_type == "income" %}
+                                        {{ transaction.amount|floatformat:2 }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+
+                                <td class="money-out">
+                                    {% if transaction.transaction_type == "expense" %}
+                                        {{ transaction.amount|floatformat:2 }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="transaction-empty">
+            <div class="transaction-empty-icon">↔</div>
+            <h2>No transactions yet</h2>
+            <p>When an expense request is approved, its money-out record will appear here.</p>
+            <a class="transaction-back-link"
+               href="{% url 'finance:dashboard' club_id=club.id %}">
+                View expense requests
+            </a>
+        </section>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,6 +1,7 @@
 from django.urls import path,include
 from . import views
 
+
 urlpatterns = [
     path("new/", views.create_club, name="create_club"),
     path("<int:club_id>/", views.club_details, name="club_details"),
@@ -10,4 +11,5 @@ urlpatterns = [
         "<int:club_id>/finance/",
         include(("finance.urls", "finance"), namespace="finance"),
     ),
+    
 ]
