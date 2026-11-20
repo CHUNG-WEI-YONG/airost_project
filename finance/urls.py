@@ -15,16 +15,9 @@ urlpatterns = [
     path("reports/",views.financial_report,name="financial_report"),
     path("expense/<int:expense_id>/receipt/",views.view_receipt,name="view_receipt"),
     path("receipts/upload/",views.receipt_upload,name="receipt_upload"),
-    path(
-        "receipts/<int:draft_id>/review/",
-        views.receipt_review,
-        name="receipt_review",
-    ),
-    path(
-        "receipts/<int:draft_id>/process/",
-        views.process_receipt,
-        name="process_receipt",
-    ),
+    path("receipts/<int:draft_id>/review/",views.receipt_review,name="receipt_review",),
+    path("receipts/<int:draft_id>/process/",views.process_receipt,name="process_receipt",),
+    path("receipts/<int:draft_id>/confirm/",views.confirm_receipt,name="confirm_receipt",),
     
     
 

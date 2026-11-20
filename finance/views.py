@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, render,redirect
 from .models import ExpenseRequest,MoneyTransaction,FinanceNotification,FinanceReport,ReceiptDraft
-from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm,ReceiptDraftUploadForm
+from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm,ReceiptDraftUploadForm,ReceiptConfirmForm
 from django.contrib.auth.decorators import login_required
 from clubs.models import Membership
 from decimal import Decimal
@@ -581,6 +581,71 @@ def process_receipt(request, club_id, draft_id):
         "finance:receipt_review",
         club_id=club_id,
         draft_id=draft.id,
+    )
+
+@login_required
+def confirm_receipt(request, club_id, draft_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
+    draft = get_object_or_404(
+        ReceiptDraft,
+        id=draft_id,
+        club=membership.club,
+        uploaded_by=request.user,
+    )
+
+    if draft.processing_status != ReceiptDraft.ProcessingStatus.COMPLETED:
+        messages.error(request, "Read the receipt before confirming it.")
+        return redirect(
+            "finance:receipt_review",
+            club_id=club_id,
+            draft_id=draft.id,
+        )
+
+    if draft.expense_request_id:
+        messages.info(request, "This receipt has already been submitted.")
+        return redirect("finance:dashboard", club_id=club_id)
+
+    if request.method == "POST":
+        form = ReceiptConfirmForm(request.POST)
+
+        if form.is_valid():
+            with transaction.atomic():
+                expense = form.save(commit=False)
+                expense.club = membership.club
+                expense.submitted_by = request.user
+
+                # Reuse the uploaded receipt file for the final request.
+                expense.receipt.name = draft.file.name
+                expense.save()
+
+                draft.expense_request = expense
+                draft.save(update_fields=["expense_request"])
+
+            messages.success(request, "Expense request submitted for review.")
+            return redirect("finance:dashboard", club_id=club_id)
+    else:
+        extracted = draft.extracted_data or {}
+        form = ReceiptConfirmForm(initial={
+            "title": extracted.get("merchant") or "",
+            "description": "",
+            "amount": extracted.get("total_amount") or "",
+            "expenses_at": extracted.get("purchase_date") or "",
+            "category": ExpenseRequest.Category.OTHER,
+        })
+
+    return render(
+        request,
+        "finance/receipt_confirm.html",
+        {
+            "club": membership.club,
+            "membership": membership,
+            "draft": draft,
+            "form": form,
+        },
     )
 
     

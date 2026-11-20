@@ -79,3 +79,15 @@ class ReceiptDraftUploadForm(forms.ModelForm):
 
         return uploaded_file
 
+class ReceiptConfirmForm(FinanceRequestForm):
+    class Meta(FinanceRequestForm.Meta):
+        # The receipt is already stored on ReceiptDraft.
+        # The view will attach it to the final ExpenseRequest.
+        fields = [
+            "title",
+            "description",
+            "amount",
+            "expenses_at",
+            "category",
+        ]
+
