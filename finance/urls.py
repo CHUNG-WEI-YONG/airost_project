@@ -11,7 +11,10 @@ urlpatterns = [
     path("transactions/",views.transaction_history,name="transaction"),
     path("income/new/", views.record_income, name="record_income"),
     path("expense/<int:expense_id>/cancellation",views.cancel_expense,name="cancel_expense"),
-    path("notifications",views.notification_list,name="notifications")
+    path("notifications",views.notification_list,name="notifications"),
+    path("reports/",views.financial_report,name="financial_report"),
+    path("expense/<int:expense_id>/receipt/",views.view_receipt,name="view_receipt")
+    
     
 
 ]

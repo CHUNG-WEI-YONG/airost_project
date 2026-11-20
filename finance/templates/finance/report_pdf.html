@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ club.name }} | Financial report</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 17mm 15mm 20mm;
+            @bottom-left {
+                content: "BUDGETAI  /  CLUB FINANCE";
+                color: #7b8b84;
+                font-size: 8pt;
+                letter-spacing: 1px;
+            }
+            @bottom-right {
+                content: "PAGE " counter(page) " OF " counter(pages);
+                color: #7b8b84;
+                font-size: 8pt;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: #20362f;
+            background: #ffffff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.45;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 22px;
+            padding: 12px 14px;
+            border: 1px solid #dce8e2;
+            border-radius: 10px;
+            background: #f5faf7;
+        }
+
+        .toolbar form {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin: 0;
+        }
+
+        .toolbar label {
+            color: #53675e;
+            font-size: 9pt;
+            font-weight: bold;
+        }
+
+        .toolbar select,
+        .toolbar button,
+        .toolbar a {
+            min-height: 34px;
+            padding: 7px 11px;
+            border: 1px solid #cbdcd3;
+            border-radius: 7px;
+            background: #fff;
+            color: #214d3e;
+            font: inherit;
+            text-decoration: none;
+        }
+
+        .toolbar button,
+        .toolbar a {
+            border-color: #176b55;
+            background: #176b55;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .toolbar a { white-space: nowrap; }
+
+        .report-header {
+            position: relative;
+            padding: 4px 0 20px;
+            border-bottom: 3px solid #176b55;
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            color: #176b55;
+            font-size: 13pt;
+            font-weight: 800;
+            letter-spacing: 2px;
+        }
+
+        .report-tag {
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #e8f4ed;
+            color: #176b55;
+            font-size: 8pt;
+            font-weight: bold;
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }
+
+        .report-kicker {
+            margin: 23px 0 4px;
+            color: #71827a;
+            font-size: 8pt;
+            font-weight: bold;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 0;
+            color: #183b30;
+            font-size: 27pt;
+            line-height: 1.15;
+        }
+
+        .report-period {
+            margin: 9px 0 0;
+            color: #687a71;
+            font-size: 10pt;
+        }
+
+        .summary {
+            width: 100%;
+            margin: 18px 0 21px;
+            border-spacing: 7px;
+            table-layout: fixed;
+        }
+
+        .summary td {
+            width: 25%;
+            padding: 13px 12px;
+            border: 1px solid #dce8e2;
+            border-top: 3px solid #176b55;
+            border-radius: 8px;
+            background: #f8fbf9;
+            vertical-align: top;
+        }
+
+        .summary td.out-card { border-top-color: #c56a4b; }
+        .summary td.balance-card {
+            border-top-color: #315f8c;
+            background: #f2f7fb;
+        }
+
+        .metric-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #6c7d74;
+            font-size: 8pt;
+            font-weight: bold;
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            display: block;
+            color: #176b55;
+            font-size: 15pt;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .out-card .metric-value { color: #a8563c; }
+        .balance-card .metric-value { color: #315f8c; }
+
+        .section {
+            margin-top: 21px;
+            page-break-inside: avoid;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0 0 8px;
+            padding-bottom: 7px;
+            border-bottom: 1px solid #dce8e2;
+        }
+
+        h2 {
+            margin: 0;
+            color: #214d3e;
+            font-size: 13pt;
+        }
+
+        .section-note {
+            color: #7b8b84;
+            font-size: 8pt;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .data-table th {
+            padding: 8px 9px;
+            background: #edf5f0;
+            color: #4d6359;
+            font-size: 7.5pt;
+            font-weight: bold;
+            letter-spacing: .5px;
+            text-align: left;
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            padding: 8px 9px;
+            border-bottom: 1px solid #e6eeea;
+            color: #34483f;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: #fafcfb;
+        }
+
+        .data-table thead { display: table-header-group; }
+
+        .data-table tr { page-break-inside: avoid; }
+
+        .align-right {
+            text-align: right !important;
+            white-space: nowrap;
+        }
+
+        .empty-cell {
+            padding: 13px 9px !important;
+            color: #7b8b84 !important;
+            font-style: italic;
+            text-align: center;
+        }
+
+        .report-note {
+            margin-top: 22px;
+            padding: 11px 13px;
+            border-left: 3px solid #91bca6;
+            background: #f4f8f5;
+            color: #607168;
+            font-size: 8.5pt;
+        }
+
+        .footer {
+            margin-top: 22px;
+            padding-top: 10px;
+            border-top: 1px solid #dce8e2;
+            color: #829088;
+            font-size: 8pt;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar no-print">
+        <form method="get">
+            <label for="period">Report period</label>
+            <select id="period" name="period">
+                <option value="day" {% if period == "day" %}selected{% endif %}>Today</option>
+                <option value="week" {% if period == "week" %}selected{% endif %}>This week</option>
+                <option value="month" {% if period == "month" %}selected{% endif %}>This month</option>
+                <option value="year" {% if period == "year" %}selected{% endif %}>This year</option>
+            </select>
+            <button type="submit">Update</button>
+        </form>
+        <a href="?period={{ period }}&amp;format=pdf">Export PDF</a>
+    </div>
+
+    <header class="report-header">
+        <div class="brand-row">
+            <div class="brand">BUDGETAI</div>
+            <span class="report-tag">Financial report</span>
+        </div>
+        <p class="report-kicker">Club finance summary</p>
+        <h1>{{ club.name }}</h1>
+        <p class="report-period">
+            {{ start_date|date:"M j, Y" }} – {{ end_date|date:"M j, Y" }}
+        </p>
+    </header>
+
+    <table class="summary">
+        <tr>
+            <td>
+                <span class="metric-label">Money in · period</span>
+                <span class="metric-value">{{ total_income|floatformat:2 }}</span>
+            </td>
+            <td class="out-card">
+                <span class="metric-label">Money out · period</span>
+                <span class="metric-value">{{ total_out|floatformat:2 }}</span>
+            </td>
+            <td class="balance-card">
+                <span class="metric-label">Current balance</span>
+                <span class="metric-value">{{ balance|floatformat:2 }}</span>
+            </td>
+            <td>
+                <span class="metric-label">Approved requests</span>
+                <span class="metric-value">{{ approved_count }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <section class="section">
+        <div class="section-heading">
+            <h2>Approved spending by category</h2>
+            <span class="section-note">Selected period</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 54%">Category</th>
+                    <th style="width: 18%">Requests</th>
+                    <th class="align-right" style="width: 28%">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in category_summary %}
+                    <tr>
+                        <td>{{ row.category_label }}</td>
+                        <td>{{ row.count }}</td>
+                        <td class="align-right">{{ row.total|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="empty-cell" colspan="3">No approved expenses in this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="section">
+        <div class="section-heading">
+            <h2>Approved spending by member</h2>
+            <span class="section-note">Based on submitted requests</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 54%">Member</th>
+                    <th style="width: 18%">Requests</th>
+                    <th class="align-right" style="width: 28%">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in member_summary %}
+                    <tr>
+                        <td>{{ row.submitted_by__email }}</td>
+                        <td>{{ row.count }}</td>
+                        <td class="align-right">{{ row.total|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="empty-cell" colspan="3">No approved expenses in this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="section">
+        <div class="section-heading">
+            <h2>Transaction details</h2>
+            <span class="section-note">{{ transactions|length }} record{{ transactions|length|pluralize }}</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 17%">Date</th>
+                    <th style="width: 17%">Type</th>
+                    <th style="width: 44%">Description</th>
+                    <th class="align-right" style="width: 22%">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in transactions %}
+                    <tr>
+                        <td>{{ transaction.transaction_date|date:"M j, Y" }}</td>
+                        <td>{{ transaction.get_transaction_type_display }}</td>
+                        <td>{{ transaction.description }}</td>
+                        <td class="align-right">{{ transaction.amount|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td class="empty-cell" colspan="4">No transactions in this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <div class="report-note">
+        Approved spending is grouped by the member who submitted each request.
+        The current balance reflects all recorded club transactions.
+    </div>
+
+    <div class="footer">
+        Generated by BudgetAI · Figures are calculated from the club's saved financial records.
+    </div>
+</body>
+</html>

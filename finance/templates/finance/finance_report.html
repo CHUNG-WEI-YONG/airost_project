@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ club.name }} Financial Report</title>
+
+    <style>
+        @page {
+            size: A4;
+            margin: 16mm;
+            @bottom-right {
+                content: "Page " counter(page) " of " counter(pages);
+                color: #75827c;
+                font-size: 9px;
+            }
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            color: #203b32;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .toolbar a, .toolbar button {
+            padding: 9px 14px;
+            border: 0;
+            border-radius: 7px;
+            background: #176b55;
+            color: white;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .report-header {
+            padding-bottom: 18px;
+            border-bottom: 3px solid #176b55;
+        }
+
+        .brand {
+            color: #176b55;
+            font-size: 12pt;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .report-label {
+            margin-top: 22px;
+            color: #6d7c75;
+            font-size: 9pt;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        h1 {
+            margin: 7px 0;
+            font-size: 26pt;
+        }
+
+        .muted { color: #718079; }
+
+        .summary {
+            width: 100%;
+            margin: 20px 0;
+            border-spacing: 8px;
+            table-layout: fixed;
+        }
+
+        .summary td {
+            padding: 14px;
+            border: 1px solid #dce8e2;
+            border-radius: 8px;
+            background: #f7fbf8;
+        }
+
+        .summary-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #718079;
+            font-size: 9pt;
+        }
+
+        .summary-value {
+            color: #176b55;
+            font-size: 16pt;
+            font-weight: bold;
+        }
+
+        h2 {
+            margin: 23px 0 9px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #dce8e2;
+            font-size: 14pt;
+        }
+
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+
+        .data-table th, .data-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e7eeea;
+            text-align: left;
+        }
+
+        .data-table th {
+            background: #edf5f0;
+            color: #4e645a;
+            font-size: 8.5pt;
+            text-transform: uppercase;
+        }
+
+        .amount { text-align: right !important; white-space: nowrap; }
+
+        thead { display: table-header-group; }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .footer {
+            margin-top: 24px;
+            padding-top: 10px;
+            border-top: 1px solid #dce8e2;
+            color: #718079;
+            font-size: 8.5pt;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="toolbar no-print">
+        <form method="get">
+            <label for="period">Report period:</label>
+            <select id="period" name="period">
+                <option value="day" {% if period == "day" %}selected{% endif %}>Today</option>
+                <option value="week" {% if period == "week" %}selected{% endif %}>This week</option>
+                <option value="month" {% if period == "month" %}selected{% endif %}>This month</option>
+                <option value="year" {% if period == "year" %}selected{% endif %}>This year</option>
+            </select>
+            <button type="submit">View report</button>
+        </form>
+
+        <a href="?period={{ period }}&amp;format=pdf">Download PDF</a>
+    </div>
+
+    <header class="report-header">
+        <div class="brand">BUDGETAI</div>
+        <div class="report-label">Club financial report</div>
+        <h1>{{ club.name }}</h1>
+        <p class="muted">
+            {{ start_date|date:"M j, Y" }} – {{ end_date|date:"M j, Y" }}
+            · Prepared for {{ membership.get_role_display }}
+        </p>
+    </header>
+
+    <table class="summary">
+        <tr>
+            <td>
+                <span class="summary-label">Money in this period</span>
+                <span class="summary-value">{{ total_income|floatformat:2 }}</span>
+            </td>
+            <td>
+                <span class="summary-label">Money out this period</span>
+                <span class="summary-value">{{ total_out|floatformat:2 }}</span>
+            </td>
+            <td>
+                <span class="summary-label">Current club balance</span>
+                <span class="summary-value">{{ balance|floatformat:2 }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <p>
+        <strong>Approved requests:</strong> {{ approved_count }}
+        &nbsp; · &nbsp;
+        <strong>Approved spending:</strong> {{ approved_total|floatformat:2 }}
+    </p>
+
+    <h2>Spending by category</h2>
+    <table class="data-table">
+        <thead>
+            <tr><th>Category</th><th>Requests</th><th class="amount">Total</th></tr>
+        </thead>
+        <tbody>
+            {% for row in category_summary %}
+                <tr>
+                    <td>{{ row.category_label }}</td>
+                    <td>{{ row.count }}</td>
+                    <td class="amount">{{ row.total|floatformat:2 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">No approved expenses in this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Approved spending by member</h2>
+    <table class="data-table">
+        <thead>
+            <tr><th>Member</th><th>Requests</th><th class="amount">Total</th></tr>
+        </thead>
+        <tbody>
+            {% for row in member_summary %}
+                <tr>
+                    <td>{{ row.submitted_by__email }}</td>
+                    <td>{{ row.count }}</td>
+                    <td class="amount">{{ row.total|floatformat:2 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="3">No approved expenses in this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Transaction details</h2>
+    <table class="data-table">
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Description</th><th class="amount">Amount</th></tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.transaction_date|date:"M j, Y" }}</td>
+                    <td>{{ transaction.get_transaction_type_display }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td class="amount">{{ transaction.amount|floatformat:2 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="4">No transactions in this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Generated by BudgetAI · Financial figures are based on saved club records.
+    </div>
+</body>
+</html>

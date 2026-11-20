@@ -2,6 +2,16 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+def convert_legacy_club_time_to_datetime(apps, schema_editor):
+    """Preserve the old time value while adding a migration date on PostgreSQL."""
+    if schema_editor.connection.vendor == "postgresql":
+        schema_editor.execute(
+            'ALTER TABLE "clubs_club" '
+            'ALTER COLUMN "created_at" TYPE timestamp with time zone '
+            'USING ((CURRENT_DATE + "created_at") AT TIME ZONE \'UTC\')'
+        )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("clubs", "0001_initial"),
@@ -17,6 +27,10 @@ class Migration(migrations.Migration):
             model_name="membership",
             old_name="club-memberships",
             new_name="user",
+        ),
+        migrations.RunPython(
+            convert_legacy_club_time_to_datetime,
+            migrations.RunPython.noop,
         ),
         migrations.AlterField(
             model_name="club",

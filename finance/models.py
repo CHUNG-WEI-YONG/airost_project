@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from clubs.models import Club
 from django import forms
+
 # Create your models here.
 
 class ExpenseRequest(models.Model):
@@ -102,13 +103,13 @@ class MoneyTransaction(models.Model):
 
 
 class FinanceNotification(models.Model):
-    recepient=models.ForeignKey(
+    recipient=models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="finance_notifications"
     )
 
-    request=models.ForeignKey(
+    expense_request=models.ForeignKey(
         ExpenseRequest,
         on_delete=models.CASCADE,
         related_name="notifications"
@@ -116,13 +117,42 @@ class FinanceNotification(models.Model):
 
     message=models.CharField(max_length=100)
     created_at=models.DateTimeField(auto_now_add=True)
-    is_read=models.BooleanField(default=True)
+    is_read=models.BooleanField(default=False)
 
     class Meta:
         ordering=["-created_at"]
 
     def __str__(self):
         return f"Notification for {self.recipient}"
+
+
+class FinanceReport(models.Model):
+    club=models.ForeignKey(
+        Club,
+        on_delete=models.CASCADE,
+        related_name="financial_reports"
+    )
+
+    created_by=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_financial_reports"
+    )
+
+    period_start=models.DateField()
+    period_end=models.DateField()
+    pdf_file=models.FileField(upload_to="financial_report/%y/%m/")
+    created_at=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering=["-created_at"]
+
+    def __str__(self):
+        return f"{self.club.name} report ({self.period_start} to {self.period_end})"
+
+
 
 
 

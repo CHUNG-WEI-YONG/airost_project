@@ -36,14 +36,13 @@
                 href="{% url 'finance:transaction' club_id=club.id %}">
                     Transaction history
                 </a>
-                <span class="sidebar-link coming-soon">Budget</span>
                 {% if membership.role == "president" %}
                     <a class="sidebar-link"
                         href="{% url 'finance:approval_limit' club_id=club.id %}">
                     Approval limit
                     </a>
                 {% endif %}
-                <span class="sidebar-link coming-soon">Reports</span>
+                <a class="sidebar-link" href="{% url 'finance:financial_report' club_id=club.id %}">Reports</a>
                 <span class="sidebar-link coming-soon">AI assistant</span>
 
                 <a class="sidebar-link" href="{% url 'club_details' club.id %}">

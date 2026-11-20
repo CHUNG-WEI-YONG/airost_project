@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render,redirect
-from .models import ExpenseRequest,MoneyTransaction,FinanceNotification
+from .models import ExpenseRequest,MoneyTransaction,FinanceNotification,FinanceReport
 from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm
 from django.contrib.auth.decorators import login_required
 from clubs.models import Membership
@@ -9,8 +9,16 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.db.models import Q,Sum
+from django.db.models import Q,Sum,Count
 from django.core.mail import send_mail
+from datetime import timedelta
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from weasyprint import HTML
+from django.core.files.base import ContentFile
+from django.http import FileResponse,Http404
+
+
 # Create your views here.
 
 @login_required
@@ -54,39 +62,36 @@ def expenses_create(request,club_id):
             expense.submitted_by=request.user
             expense.save()
 
+            reviewers=Membership.objects.filter(
+                    club=membership.club,
+                    role__in=[
+                        Membership.Role.PRESIDENT,
+                        Membership.Role.TREASURER
+                    ],
+                ).select_related("user")
+            
+            for reviewer in reviewers:
+                    if reviewer.id!=request.user.id:
+                        FinanceNotification.objects.create(
+                            recipient=reviewer.user,
+                            expense_request=expense,
+                            message=f"New expense request: {expense.title}",
+                            )
+            
+                    if reviewer.user.email:
+                        send_mail(
+                                subject=f"New finance expenses request for {membership.club.name}",
+                                message=(f"{request.user.email} submitted {expense.title} for amount of {expense.amount}"
+                                         "Please Sign In to Review It"),
+                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                recipient_ist=[reviewer.user.email]
+                        )
+            
+
             return redirect('finance:dashboard',club_id=club_id)
 
     else:
         form=FinanceRequestForm()
-
-    reviewers=Membership.objects.filter(
-        club=membership.club,
-        role__in=[
-            Membership.Role.PRESIDENT,
-            Membership.Role.TREASURER
-        ],
-    ).select_related("user")
-
-    for reviewer in reviewers:
-        if reviewer.id!=request.user.id:
-            FinanceNotification.objects.create(
-                recipient=reviewer.user,
-                expense_request=expense,
-                message=f"New expense request: {expense.title}",
-                
-            )
-
-            if reviewer.user.email:
-                send_mail(
-                    subject=f"New finance expenses request for {membership.club.name}"
-                    message=(f"{request.user.email} submitted {expense.title} for amount of {expense.amount}"
-                             "Please Sign In to Review It"),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_ist=[reviewer.user.email]
-
-                            
-
-                )
 
     return render(request,'finance/expense_form.html',{"form":form,"club":membership.club,"membership":membership})
 
@@ -108,59 +113,59 @@ def review_expense(request,club_id,expense_id):
         raise PermissionDenied
 
     if (decision==ExpenseRequest.Status.APPROVED and membership.role==Membership.Role.TREASURER 
-        and expense.amount>=membership.club.transaction_approval_limit):
+        and expense.amount>membership.club.transaction_approval_limit):
         messages.error(request,"This request is above your approval limit and needs the president to review it.",)
         return redirect("finance:dashboard",club_id=club_id)
 
-    expense.status=decision
-    expense.reviewed_by=request.user
-    expense.reviewed_at=timezone.now()
-    expense.reviewed_comment=request.POST.get("reviewed_comment","").strip()
-
-    expense.save(
-        update_fields=[
-            "status",
-            "reviewed_by",
-            "reviewed_at",
-            "reviewed_comment"
-        ]
-    )
-
-    if decision == ExpenseRequest.Status.APPROVED:
-        MoneyTransaction.objects.get_or_create(
-            expense_request=expense,
-            defaults={
-                "club": expense.club,
-                "recorded_by": request.user,
-                "transaction_type": MoneyTransaction.Type.EXPENSE,
-                "amount": expense.amount,
-                "description": f"Approved: {expense.title}",
-                "transaction_date": expense.expenses_at,
-            },
+    with transaction.atomic():
+        expense.status = decision
+        expense.reviewed_by = request.user
+        expense.reviewed_at = timezone.now()
+        expense.reviewed_comment = request.POST.get("reviewed_comment", "").strip()
+        expense.save(
+            update_fields=[
+                "status",
+                "reviewed_by",
+                "reviewed_at",
+                "reviewed_comment",
+            ]
         )
 
-    messages.success(
-        request, 
-        f"Expense request #{expense.id} has been {decision.lower()} successfully."
-    )
-
-    decision_text=expense.get_status_display()
-    FinanceNotification.objects.create(
-        recipient=expense.submitted_by,
-        expense_request=expense,
-        message=f"Your expense request '{expense.title}' was {decision_text.lower()}.",
-
-    )
-
-    if expense.submitted_by.email:
-        send_mail(subject=f"Expense request {decision_text.lower()}: {expense.title}",
-            message=(
-                    f"Your request for {expense.amount} at {expense.club.name} "
-                    f"was {decision_text.lower()}."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[expense.submitted_by.email],
+        if decision == ExpenseRequest.Status.APPROVED:
+            MoneyTransaction.objects.get_or_create(
+                expense_request=expense,
+                defaults={
+                    "club": expense.club,
+                    "recorded_by": request.user,
+                    "transaction_type": MoneyTransaction.Type.EXPENSE,
+                    "amount": expense.amount,
+                    "description": f"Approved: {expense.title}",
+                    "transaction_date": expense.expenses_at,
+                },
             )
+
+        FinanceNotification.objects.create(
+            recipient=expense.submitted_by,
+            expense_request=expense,
+            message=f"Your expense request '{expense.title}' was {expense.get_status_display().lower()}.",
+        )
+
+        messages.success(
+            request, 
+            f"Expense request #{expense.id} has been {decision.lower()} successfully."
+        )
+
+        decision_text=expense.get_status_display()
+
+        if expense.submitted_by.email:
+            send_mail(subject=f"Expense request {decision_text.lower()}: {expense.title}",
+                message=(
+                        f"Your request for {expense.amount} at {expense.club.name} "
+                        f"was {decision_text.lower()}."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[expense.submitted_by.email],
+                )
 
 
     return redirect("finance:dashboard",club_id=club_id)
@@ -206,7 +211,7 @@ def transaction_history(request,club_id):
                    "transactions":transactions,
                    "club":membership.club,
                    "total_income":total_incomes,
-                   "total_expense":total_expenses,
+                   "total_out":total_expenses,
                    "balance":total_incomes-total_expenses})
 
 @login_required
@@ -269,15 +274,191 @@ def notification_list(request,club_id):
         user=request.user
     )
 
-    notifications=get_object_or_404(
-        FinanceNotification.objects.filter(
+    notifications=FinanceNotification.objects.filter(
             recipient=request.user,
             expense_request__club=membership.club
-        ).select_related("expense_request")
-    )
+        ).select_related("request")
 
     return render(request,"finance/notifications.html",
                   {"club":membership.club,"membership":membership,"notifications":notifications})
+
+
+@login_required
+def financial_report(request, club_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
+
+    period = request.GET.get("period", "month")
+    today = timezone.localdate()
+
+    if period == "day":
+        start_date = end_date = today
+    elif period == "week":
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == "year":
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    else:
+        period = "month"
+        start_date = today.replace(day=1)
+        end_date = today
+
+    transactions = (
+        MoneyTransaction.objects
+        .filter(
+            club=membership.club,
+            transaction_date__range=(start_date, end_date),
+        )
+        .select_related("recorded_by", "expense_request")
+    )
+
+    period_totals = transactions.aggregate(
+        total_income=Sum(
+            "amount",
+            filter=Q(transaction_type=MoneyTransaction.Type.INCOME),
+        ),
+        total_out=Sum(
+            "amount",
+            filter=Q(transaction_type=MoneyTransaction.Type.EXPENSE),
+        ),
+    )
+
+    total_income = period_totals["total_income"] or Decimal("0.00")
+    total_out = period_totals["total_out"] or Decimal("0.00")
+
+    # Calculate the club's current balance using all its transactions.
+    all_totals = MoneyTransaction.objects.filter(
+        club=membership.club,
+    ).aggregate(
+        all_income=Sum(
+            "amount",
+            filter=Q(transaction_type=MoneyTransaction.Type.INCOME),
+        ),
+        all_out=Sum(
+            "amount",
+            filter=Q(transaction_type=MoneyTransaction.Type.EXPENSE),
+        ),
+    )
+
+    current_balance = (
+        (all_totals["all_income"] or Decimal("0.00"))
+        - (all_totals["all_out"] or Decimal("0.00"))
+    )
+
+    approved_requests = ExpenseRequest.objects.filter(
+        club=membership.club,
+        status=ExpenseRequest.Status.APPROVED,
+        expenses_at__range=(start_date, end_date),
+    )
+
+    approved_stats = approved_requests.aggregate(
+        count=Count("id"),
+        total=Sum("amount"),
+    )
+
+    category_summary = list(
+        approved_requests
+        .values("category")
+        .annotate(count=Count("id"), total=Sum("amount"))
+        .order_by("-total")
+    )
+
+    category_labels = dict(ExpenseRequest.Category.choices)
+    for row in category_summary:
+        row["category_label"] = category_labels.get(
+            row["category"],
+            row["category"],
+        )
+
+    member_summary = (
+        approved_requests
+        .values("submitted_by__email")
+        .annotate(count=Count("id"), total=Sum("amount"))
+        .order_by("-total")
+    )
+
+    context = {
+        "club": membership.club,
+        "membership": membership,
+        "transactions": transactions,
+        "period": period,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_income": total_income,
+        "total_out": total_out,
+        "period_net": total_income - total_out,
+        "balance": current_balance,
+        "approved_count": approved_stats["count"] or 0,
+        "approved_total": approved_stats["total"] or Decimal("0.00"),
+        "category_summary": category_summary,
+        "member_summary": member_summary,
+    }
+
+    if request.GET.get("format")=="pdf":
+        html_content=render_to_string(
+            "finance/report_pdf.html",
+            context=context,
+            request=request,
+
+        )
+
+        pdf_file=HTML(
+            string=html_content,
+            base_url=request.build_absolute_uri("/"),).write_pdf()
+
+        response=HttpResponse(pdf_file,content_type="application/pdf")
+
+        response["Content-Disposition"] = (
+            'inline; filename="club-financial-report.pdf"'
+        )
+
+        saved_report=FinanceReport(
+            club=membership.club,
+            created_by=request.user,
+            period_start=start_date,
+            period_end=end_date
+        )
+
+        filename = f"club-{membership.club.id}-{start_date}-{end_date}.pdf"
+        saved_report.pdf_file.save(filename, ContentFile(pdf_file), save=True)
+        return response
+    return render(request,"finance/report_pdf.html",context)
+
+
+@login_required
+def view_receipt(request,club_id,expense_id):
+    membership=get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user
+    )
+
+    expense=get_object_or_404(
+        ExpenseRequest,
+        id=expense_id,
+        club=membership.club)
+
+    is_manager= membership.role in [Membership.Role.PRESIDENT , Membership.Role.TREASURER]
+
+    if not is_manager and expense.submitted_by_id!=request.user.id:
+        raise PermissionDenied
+
+    if not expense.receipt:
+        raise Http404("No receipt for this request")
+
+    return FileResponse(
+        expense.receipt.open("rb"),
+        as_attachment=True,
+        filename=expense.receipt.name.rsplit("/", 1)[-1],
+    )
+
+    
+
+
 
 
 

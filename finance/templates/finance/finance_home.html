@@ -50,12 +50,10 @@
                             </p>
                         {% endif %}
 
-                        {% if item.receipt %}
+                       {% if item.receipt %}
                             <a class="receipt-link"
-                               href="{{ item.receipt.url }}"
-                               target="_blank"
-                               rel="noopener noreferrer">
-                                View receipt ↗
+                            href="{% url 'finance:view_receipt' club_id=club.id expense_id=item.id %}">
+                                View receipt
                             </a>
                         {% endif %}
                     </div>

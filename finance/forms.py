@@ -2,6 +2,8 @@ from django import forms
 from .models import ExpenseRequest, MoneyTransaction
 from clubs.models import Club
 from django.utils import timezone
+
+
 class FinanceRequestForm(forms.ModelForm):
     class Meta:
         model=ExpenseRequest
@@ -25,6 +27,12 @@ class FinanceRequestForm(forms.ModelForm):
             raise forms.ValidationError( "The expense date cannot be in the future. Choose today or an earlier date.")
         return expense_date
 
+    def clean_amount(self):
+        amount=self.cleaned_data["amount"]
+        if amount<=0:
+            raise forms.ValidationError("Wrong , no zero or negative amount allowed")
+        return amount
+
 class SetLimitRequest(forms.ModelForm):
     class Meta:
         model=Club
@@ -43,5 +51,11 @@ class IncomeSubmissionForm(forms.ModelForm):
             "amount": forms.NumberInput(attrs={"min": "0.01", "step": "0.01"}),
             "transaction_date": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def clean_amount(self):
+            amount=self.cleaned_data["amount"]
+            if amount<=0:
+                raise forms.ValidationError("Wrong , no zero or negative amount allowed")
+            return amount
         
 
