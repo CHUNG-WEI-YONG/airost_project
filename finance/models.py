@@ -91,7 +91,7 @@ class MoneyTransaction(models.Model):
         max_digits=10
     )
 
-    description=models.CharField(max_length=20)
+    description=models.CharField(max_length=255)
     transaction_date=models.DateField()
     created_at=models.DateTimeField(auto_now_add=True)
 
@@ -170,8 +170,16 @@ class ReceiptDraft(models.Model):
         related_name="uploaded_receipt_draft"
     )
 
-    file=models.FileField()
+    file=models.FileField(upload_to="receipt_drafts/%Y/%m/")
     time_uploaded=models.DateTimeField(auto_now_add=True)
+
+    processing_status = models.CharField(
+        max_length=20,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.PENDING,
+    )
+    extracted_data = models.JSONField(default=dict, blank=True)
+    processing_error = models.TextField(blank=True)
 
     class Meta:
         ordering=["-time_uploaded"]

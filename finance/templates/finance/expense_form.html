@@ -10,7 +10,12 @@
 
     <p class="eyebrow">{{ club.name }} · FINANCE</p>
     <h1>Submit an expense</h1>
-    <p class="intro">Add the expense details and attach its receipt.</p>
+    <p class="intro">Add the expense details and attach its receipt or directly give us the receipt.</p>
+
+    <a class="finance-inline-link"
+       href="{% url 'finance:receipt_upload' club_id=club.id %}">
+        Upload receipt (Reviewed and fill by AI)
+    </a>
 
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}

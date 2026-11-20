@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404, render,redirect
-from .models import ExpenseRequest,MoneyTransaction,FinanceNotification,FinanceReport
-from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm
+from .models import ExpenseRequest,MoneyTransaction,FinanceNotification,FinanceReport,ReceiptDraft
+from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm,ReceiptDraftUploadForm
 from django.contrib.auth.decorators import login_required
 from clubs.models import Membership
 from decimal import Decimal
@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.db.models import Q,Sum,Count
+from django.db import transaction
 from django.core.mail import send_mail
 from datetime import timedelta
 from django.http import HttpResponse
@@ -17,6 +18,10 @@ from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.core.files.base import ContentFile
 from django.http import FileResponse,Http404
+from .service.ai_service import extract_receipt_details
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -71,20 +76,29 @@ def expenses_create(request,club_id):
                 ).select_related("user")
             
             for reviewer in reviewers:
-                    if reviewer.id!=request.user.id:
-                        FinanceNotification.objects.create(
-                            recipient=reviewer.user,
-                            expense_request=expense,
-                            message=f"New expense request: {expense.title}",
-                            )
-            
-                    if reviewer.user.email:
+                if reviewer.user_id == request.user.id:
+                    continue
+
+                FinanceNotification.objects.create(
+                    recipient=reviewer.user,
+                    expense_request=expense,
+                    message=f"New expense request: {expense.title}",
+                )
+
+                if reviewer.user.email:
+                    try:
                         send_mail(
-                                subject=f"New finance expenses request for {membership.club.name}",
-                                message=(f"{request.user.email} submitted {expense.title} for amount of {expense.amount}"
-                                         "Please Sign In to Review It"),
-                                from_email=settings.DEFAULT_FROM_EMAIL,
-                                recipient_ist=[reviewer.user.email]
+                            subject=f"New finance expense request for {membership.club.name}",
+                            message=(
+                                f"{request.user.email} submitted {expense.title} "
+                                f"for {expense.amount}. Please sign in to review it."
+                            ),
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[reviewer.user.email],
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Could not email reviewer for expense %s", expense.id
                         )
             
 
@@ -158,13 +172,19 @@ def review_expense(request,club_id,expense_id):
         decision_text=expense.get_status_display()
 
         if expense.submitted_by.email:
-            send_mail(subject=f"Expense request {decision_text.lower()}: {expense.title}",
-                message=(
+            try:
+                send_mail(
+                    subject=f"Expense request {decision_text.lower()}: {expense.title}",
+                    message=(
                         f"Your request for {expense.amount} at {expense.club.name} "
                         f"was {decision_text.lower()}."
                     ),
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[expense.submitted_by.email],
+                )
+            except Exception:
+                logger.exception(
+                    "Could not email submitter for expense %s", expense.id
                 )
 
 
@@ -277,7 +297,7 @@ def notification_list(request,club_id):
     notifications=FinanceNotification.objects.filter(
             recipient=request.user,
             expense_request__club=membership.club
-        ).select_related("request")
+        ).select_related("recipient", "expense_request")
 
     return render(request,"finance/notifications.html",
                   {"club":membership.club,"membership":membership,"notifications":notifications})
@@ -454,6 +474,113 @@ def view_receipt(request,club_id,expense_id):
         expense.receipt.open("rb"),
         as_attachment=True,
         filename=expense.receipt.name.rsplit("/", 1)[-1],
+    )
+
+@login_required
+def receipt_upload(request,club_id):
+    membership=get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user
+    )
+
+    if request.method == "POST":
+        form = ReceiptDraftUploadForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            draft = form.save(commit=False)
+            draft.club = membership.club
+            draft.uploaded_by = request.user
+            draft.save()
+
+            messages.success(request, "Receipt uploaded successfully.")
+            return redirect(
+                "finance:receipt_review",
+                club_id=club_id,
+                draft_id=draft.id,
+            )
+    else:
+        form = ReceiptDraftUploadForm()
+
+    return render(
+        request,
+        "finance/receipt_upload.html",
+        {
+            "form": form,
+            "club": membership.club,
+            "membership": membership,
+        },
+    )
+
+@login_required
+def receipt_review(request, club_id, draft_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
+    draft = get_object_or_404(
+        ReceiptDraft,
+        id=draft_id,
+        club=membership.club,
+        uploaded_by=request.user,
+    )
+
+    return render(
+        request,
+        "finance/receipt_review.html",
+        {
+            "club": membership.club,
+            "membership": membership,
+            "draft": draft,
+        },
+    )
+
+
+@login_required
+@require_POST
+def process_receipt(request, club_id, draft_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
+    draft = get_object_or_404(
+        ReceiptDraft,
+        id=draft_id,
+        club=membership.club,
+        uploaded_by=request.user,
+    )
+
+    # Prevent reprocessing a draft that already has results.
+    if draft.processing_status != ReceiptDraft.ProcessingStatus.COMPLETED:
+        try:
+            details = extract_receipt_details(draft.file)
+            draft.extracted_data = details
+            draft.processing_status = ReceiptDraft.ProcessingStatus.COMPLETED
+            draft.processing_error = ""
+        except Exception:
+            logger.exception("Receipt extraction failed for draft %s", draft.id)
+            draft.processing_status = ReceiptDraft.ProcessingStatus.FAILED
+            draft.processing_error = "We couldn't read this receipt. Please try again."
+
+        draft.save(
+            update_fields=[
+                "extracted_data",
+                "processing_status",
+                "processing_error",
+            ]
+        )
+
+    if draft.processing_status == ReceiptDraft.ProcessingStatus.FAILED:
+        messages.error(request, draft.processing_error)
+    else:
+        messages.success(request, "Receipt details are ready for your review.")
+
+    return redirect(
+        "finance:receipt_review",
+        club_id=club_id,
+        draft_id=draft.id,
     )
 
     

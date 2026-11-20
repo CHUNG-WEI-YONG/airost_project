@@ -13,7 +13,7 @@ BudgetAI is a Django web application for student clubs and campus societies to m
 - Configure a treasurer approval limit as the club President.
 - View in-app notifications and generate financial reports as PDFs.
 
-AI receipt reading is not implemented yet.
+AI receipt upload and extraction suggestions are available as a draft workflow. The draft-to-final expense confirmation step is still to be completed.
 
 ## Technology
 
@@ -21,6 +21,7 @@ AI receipt reading is not implemented yet.
 - Django 5.2
 - SQLite for local development, or PostgreSQL through `DATABASE_URL`
 - WeasyPrint for report PDF generation
+- OpenAI Python SDK configured for an OpenAI-compatible DeepSeek endpoint
 
 ## Clone and run locally
 
@@ -59,7 +60,7 @@ The commands below use PowerShell on Windows. Run them from the folder where you
    Copy-Item .env.example .env
    ```
 
-   Open `.env` and configure the email values. `DATABASE_URL` can remain blank to use local SQLite. To connect to Neon PostgreSQL, set it to your Neon connection URL. Never commit `.env` or share its credentials.
+   Open `.env` and configure email and AI values. `DATABASE_URL` can remain blank to use local SQLite. To connect to Neon PostgreSQL, set it to your Neon connection URL. To use cloud file storage, enable it and provide the S3-compatible values described below. Never commit `.env` or share its credentials.
 
 5. Create database tables and start Django:
 
@@ -88,8 +89,20 @@ python manage.py createsuperuser
 | `EMAIL_HOST_USER` | SMTP account username. |
 | `EMAIL_HOST_PASSWORD` | SMTP password or provider app password. |
 | `DEFAULT_FROM_EMAIL` | Sender address shown on application email. |
+| `OPENAI_API_KEY` | DeepSeek API key used through the OpenAI-compatible Python SDK. |
+| `OPENAI_BASE_URL` | Set to `https://api.deepseek.com` when using DeepSeek. |
+| `OPENAI_RECEIPT_MODEL` | Vision-capable model name, currently `deepseek-flash`. |
+| `SECRET_KEY` | Django signing key; use a private generated value in deployment. |
+| `DEBUG` | Django debug mode; set to `False` in deployment. |
+| `ALLOWED_HOSTS` | Comma-separated list of allowed hostnames. |
+| `USE_CLOUD_STORAGE` | Set to `True` to use the configured S3-compatible storage backend. |
+| `AWS_ENDPOINT_URL_S3` | S3-compatible storage endpoint. |
+| `AWS_ACCESS_KEY_ID` | S3-compatible storage access key. |
+| `AWS_SECRET_ACCESS_KEY` | S3-compatible storage secret key. |
+| `AWS_REGION` | S3-compatible storage region. |
+| `AWS_STORAGE_BUCKET_NAME` | S3-compatible storage bucket name. |
 
-The current settings require the SMTP variables to exist. The example file contains placeholders; replace them with working credentials before using email notifications. For Gmail, use an App Password where supported, not your normal account password. See [Google's App Password guidance](https://support.google.com/mail/answer/185833).
+When SMTP credentials are absent, local email uses Django's console backend. Add working SMTP credentials to send real email. For Gmail, use an App Password where supported, not your normal account password. See [Google's App Password guidance](https://support.google.com/mail/answer/185833).
 
 On Windows, WeasyPrint PDF generation may also require native Pango libraries. If PDF generation fails with a missing DLL/library error, follow [the WeasyPrint Windows installation instructions](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation).
 
@@ -101,9 +114,9 @@ On Windows, WeasyPrint PDF generation may also require native Pango libraries. I
 
 ### Receipts and PDF files
 
-Cloud file storage is **not configured yet** in this repository. The `ExpenseRequest.receipt` and `FinanceReport.pdf_file` fields currently use Django's default local file storage under `MEDIA_ROOT`. The `AWS_*` values in `.env` do not connect to Neon Object Storage until a storage backend is configured in `settings.py`.
+An S3-compatible cloud file-storage backend is configured conditionally. Set `USE_CLOUD_STORAGE=True` and supply all five `AWS_*` values above to enable it. If disabled, files use local `MEDIA_ROOT` storage and will not persist through a redeploy. Existing local uploads must be copied to cloud storage separately.
 
-Do not deploy expecting receipts or generated PDFs to survive a server redeploy until a private cloud file-storage backend is connected and tested. Existing local uploads also need to be copied to cloud storage separately.
+Test uploads and downloads in the deployed environment before relying on cloud storage for receipt or report retention.
 
 ## Project layout
 

@@ -272,6 +272,7 @@
 
 <body>
     <div class="toolbar no-print">
+        <a href="{% url 'finance:dashboard' club_id=club.id %}">← Back to finance home</a>
         <form method="get">
             <label for="period">Report period</label>
             <select id="period" name="period">

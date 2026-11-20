@@ -1210,3 +1210,67 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    margin-bottom: 22px;
+    padding: 0 13px;
+    border: 1px solid #cfe0d8;
+    border-radius: 10px;
+    color: #176b55;
+    background: #fff;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 140ms ease, border-color 140ms ease;
+}
+
+.back-link:hover {
+    border-color: #9ec9b5;
+    background: #edf7f1;
+}
+
+.back-link:focus-visible,
+.finance-inline-link:focus-visible {
+    outline: 3px solid rgb(24 118 95 / 25%);
+    outline-offset: 3px;
+}
+
+.finance-inline-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 42px;
+    margin: 8px 0 16px;
+    padding: 0 15px;
+    border: 1px solid #b9d8c8;
+    border-radius: 10px;
+    color: #145b47;
+    background: #edf7f1;
+    font-weight: 750;
+    text-decoration: none;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.finance-inline-link:hover {
+    transform: translateY(-1px);
+    border-color: #8bbda5;
+    background: #e0f1e7;
+}
+
+.receipt-upload-card {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.receipt-upload-form {
+    display: grid;
+    gap: 22px;
+    margin-top: 24px;
+}
+
+.receipt-upload-form .finance-form-field small {
+    color: #718079;
+    line-height: 1.5;
+}

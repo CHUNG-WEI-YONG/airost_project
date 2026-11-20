@@ -1,5 +1,5 @@
 from django import forms
-from .models import ExpenseRequest, MoneyTransaction
+from .models import ExpenseRequest, MoneyTransaction,ReceiptDraft
 from clubs.models import Club
 from django.utils import timezone
 
@@ -57,5 +57,25 @@ class IncomeSubmissionForm(forms.ModelForm):
             if amount<=0:
                 raise forms.ValidationError("Wrong , no zero or negative amount allowed")
             return amount
-        
+
+
+class ReceiptDraftUploadForm(forms.ModelForm):
+    class Meta:
+        model=ReceiptDraft
+        fields=["file"]
+
+    def clean_file(self):
+        uploaded_file = self.cleaned_data["file"]
+        allowed_extensions = {".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp"}
+        extension = uploaded_file.name.rsplit(".", 1)[-1].lower()
+
+        if f".{extension}" not in allowed_extensions:
+            raise forms.ValidationError(
+                "Upload a PDF, JPG, PNG, GIF, or WEBP receipt."
+            )
+
+        if uploaded_file.size > 10 * 1024 * 1024:
+            raise forms.ValidationError("The receipt file must be 10 MB or smaller.")
+
+        return uploaded_file
 
