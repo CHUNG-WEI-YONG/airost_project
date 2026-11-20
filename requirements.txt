@@ -4,3 +4,4 @@ psycopg[binary]==3.3.9
 WeasyPrint==70.0
 django-storages[s3]==1.14.6
 openai
+whitenoise>=6.8.0

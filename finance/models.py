@@ -181,6 +181,14 @@ class ReceiptDraft(models.Model):
     extracted_data = models.JSONField(default=dict, blank=True)
     processing_error = models.TextField(blank=True)
 
+    expense_request = models.OneToOneField(
+    ExpenseRequest,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="receipt_draft",
+    )
+
     class Meta:
         ordering=["-time_uploaded"]
 
