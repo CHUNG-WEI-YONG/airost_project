@@ -152,6 +152,35 @@ class FinanceReport(models.Model):
     def __str__(self):
         return f"{self.club.name} report ({self.period_start} to {self.period_end})"
 
+class ReceiptDraft(models.Model):
+    class ProcessingStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    club=models.ForeignKey(
+        Club,
+        on_delete=models.CASCADE,
+        related_name="receipt_drafts"
+    )
+
+    uploaded_by=models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="uploaded_receipt_draft"
+    )
+
+    file=models.FileField()
+    time_uploaded=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering=["-time_uploaded"]
+
+    def __str__(self):
+        return f"File uploaded by {self.uploaded_by} in {self.club}"
+
+    
+
 
 
 
