@@ -166,6 +166,7 @@ EMAIL_BACKEND = (
     if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
     else "django.core.mail.backends.console.EmailBackend"
 )
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 USE_CLOUD_STORAGE = env.bool("USE_CLOUD_STORAGE", default=False)
 

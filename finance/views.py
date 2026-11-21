@@ -620,9 +620,7 @@ def confirm_receipt(request, club_id, draft_id):
         form = ReceiptConfirmForm(request.POST)
 
         if form.is_valid():
-            with transaction.atomic():
-
-                reviewers = (
+            reviewers = list(
                 Membership.objects
                 .filter(
                     club=membership.club,
@@ -634,45 +632,60 @@ def confirm_receipt(request, club_id, draft_id):
                 .select_related("user")
             )
 
-                for reviewer in reviewers:
-                    if reviewer.user_id == request.user.id:
-                        continue
+        with transaction.atomic():
+            expense = form.save(commit=False)
+            expense.club = membership.club
+            expense.submitted_by = request.user
 
-                    FinanceNotification.objects.create(
-                        recipient=reviewer.user,
-                        expense_request=expense,
-                        message=f"New expense request: {expense.title}",
-                    )
+            # Reuse the receipt file already uploaded with this draft.
+            expense.receipt.name = draft.file.name
+            expense.save()
 
-                    if reviewer.user.email:
-                        try:
-                            send_mail(
-                                subject=f"New finance expense request for {membership.club.name}",
-                                message=(
-                                    f"{request.user.email} submitted {expense.title} "
-                                    f"for {expense.amount}. Please sign in to review it."
-                                ),
-                                from_email=settings.DEFAULT_FROM_EMAIL,
-                                recipient_list=[reviewer.user.email],
-                            )
-                        except Exception:
-                            logger.exception(
-                                "Could not email reviewer for expense %s",
-                                expense.id,
-                            )
-                    expense = form.save(commit=False)
-                    expense.club = membership.club
-                    expense.submitted_by = request.user
+            draft.expense_request = expense
+            draft.save(update_fields=["expense_request"])
 
-                    # Reuse the uploaded receipt file for the final request.
-                    expense.receipt.name = draft.file.name
-                    expense.save()
+            for reviewer in reviewers:
+                if reviewer.user_id == request.user.id:
+                    continue
 
-                    draft.expense_request = expense
-                    draft.save(update_fields=["expense_request"])
+                FinanceNotification.objects.create(
+                    recipient=reviewer.user,
+                    expense_request=expense,
+                    message=f"New expense request: {expense.title}",
+                )
 
+        email_failed = False
+
+        for reviewer in reviewers:
+            if reviewer.user_id == request.user.id or not reviewer.user.email:
+                continue
+
+            try:
+                send_mail(
+                    subject=f"New finance expense request for {membership.club.name}",
+                    message=(
+                        f"{request.user.email} submitted {expense.title} "
+                        f"for {expense.amount}. Please sign in to review it."
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[reviewer.user.email],
+                )
+            except Exception:
+                email_failed = True
+                logger.exception(
+                    "Could not email reviewer for expense %s",
+                    expense.id,
+                )
+
+        if email_failed:
+            messages.warning(
+                request,
+                "Your expense request was submitted, but an email notification could not be sent.",
+            )
+        else:
             messages.success(request, "Expense request submitted for review.")
-            return redirect("finance:dashboard", club_id=club_id)
+
+        return redirect("finance:dashboard", club_id=club_id)
     else:
         extracted = draft.extracted_data or {}
         form = ReceiptConfirmForm(initial={
