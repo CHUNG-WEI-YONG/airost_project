@@ -187,6 +187,13 @@ def review_expense(request,club_id,expense_id):
                     "Could not email submitter for expense %s", expense.id
                 )
 
+                messages.warning(
+                    request,
+                    "Your expense request was submitted, but the email notification could not be sent.",
+                )
+            else:
+                messages.success(request, "Your expense request was submitted.")
+
 
     return redirect("finance:dashboard",club_id=club_id)
 
@@ -614,16 +621,55 @@ def confirm_receipt(request, club_id, draft_id):
 
         if form.is_valid():
             with transaction.atomic():
-                expense = form.save(commit=False)
-                expense.club = membership.club
-                expense.submitted_by = request.user
 
-                # Reuse the uploaded receipt file for the final request.
-                expense.receipt.name = draft.file.name
-                expense.save()
+                reviewers = (
+                Membership.objects
+                .filter(
+                    club=membership.club,
+                    role__in=[
+                        Membership.Role.PRESIDENT,
+                        Membership.Role.TREASURER,
+                    ],
+                )
+                .select_related("user")
+            )
 
-                draft.expense_request = expense
-                draft.save(update_fields=["expense_request"])
+                for reviewer in reviewers:
+                    if reviewer.user_id == request.user.id:
+                        continue
+
+                    FinanceNotification.objects.create(
+                        recipient=reviewer.user,
+                        expense_request=expense,
+                        message=f"New expense request: {expense.title}",
+                    )
+
+                    if reviewer.user.email:
+                        try:
+                            send_mail(
+                                subject=f"New finance expense request for {membership.club.name}",
+                                message=(
+                                    f"{request.user.email} submitted {expense.title} "
+                                    f"for {expense.amount}. Please sign in to review it."
+                                ),
+                                from_email=settings.DEFAULT_FROM_EMAIL,
+                                recipient_list=[reviewer.user.email],
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Could not email reviewer for expense %s",
+                                expense.id,
+                            )
+                    expense = form.save(commit=False)
+                    expense.club = membership.club
+                    expense.submitted_by = request.user
+
+                    # Reuse the uploaded receipt file for the final request.
+                    expense.receipt.name = draft.file.name
+                    expense.save()
+
+                    draft.expense_request = expense
+                    draft.save(update_fields=["expense_request"])
 
             messages.success(request, "Expense request submitted for review.")
             return redirect("finance:dashboard", club_id=club_id)

@@ -1,0 +1,50 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Confirm expense | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="finance-form-card">
+    <a class="back-link"
+       href="{% url 'finance:receipt_review' club_id=club.id draft_id=draft.id %}">
+        ← Back to receipt review
+    </a>
+
+    <p class="eyebrow">{{ club.name }} · NEW EXPENSE</p>
+    <h1>Check your expense details</h1>
+    <p class="intro">
+        AI filled in some details from your receipt. Review and correct them before submitting.
+    </p>
+
+    <p>
+        <a class="finance-inline-link"
+           href="{{ draft.file.url }}"
+           target="_blank"
+           rel="noopener">
+            View uploaded receipt
+        </a>
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% for error in form.non_field_errors %}
+            <p class="form-error">{{ error }}</p>
+        {% endfor %}
+
+        {% for field in form %}
+            <div class="finance-form-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+
+                {% for error in field.errors %}
+                    <p class="form-error">{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+
+        <button class="finance-submit-button" type="submit">
+            Submit expense request
+        </button>
+    </form>
+</section>
+{% endblock %}

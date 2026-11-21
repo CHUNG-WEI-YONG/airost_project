@@ -29,7 +29,10 @@
             <dt>Purchase date</dt>
             <dd>{{ draft.extracted_data.purchase_date|default:"Not detected" }}</dd>
         </dl>
-        <p>Next, check each value against the receipt before submitting the expense.</p>
+        <a class="finance-submit-button"
+            href="{% url 'finance:confirm_receipt' club_id=club.id draft_id=draft.id %}">
+            Review and submit expense
+        </a>
     {% else %}
         {% if draft.processing_error %}
             <p class="message message-error">{{ draft.processing_error }}</p>
