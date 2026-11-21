@@ -18,6 +18,9 @@ urlpatterns = [
     path("receipts/<int:draft_id>/review/",views.receipt_review,name="receipt_review",),
     path("receipts/<int:draft_id>/process/",views.process_receipt,name="process_receipt",),
     path("receipts/<int:draft_id>/confirm/",views.confirm_receipt,name="confirm_receipt",),
+    path("chat/",views.ai_chat,name="ai_chat"),
+    path("assistant/", views.ai_chat_page, name="ai_chat_page"),
+
     
     
 

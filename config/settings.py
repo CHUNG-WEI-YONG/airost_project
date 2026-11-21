@@ -36,6 +36,10 @@ OPENAI_RECEIPT_MODEL = env(
     "OPENAI_RECEIPT_MODEL",
     default="deepseek-flash",
 )
+OPENAI_CHAT_MODEL = env(
+    "OPENAI_CHAT_MODEL",
+    default=OPENAI_RECEIPT_MODEL,
+)
 
 
 # Application definition
@@ -51,6 +55,7 @@ INSTALLED_APPS = [
     'clubs',
     'finance',
     'storages',
+    'anymail'
 ]
 
 MIDDLEWARE = [
@@ -151,22 +156,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = "account.User"
 LOGIN_URL = 'login'
 
-EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = env(
-    "DEFAULT_FROM_EMAIL",
-    default=EMAIL_HOST_USER or "webmaster@localhost",
-)
-EMAIL_BACKEND = (
-    "django.core.mail.backends.smtp.EmailBackend"
-    if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
-    else "django.core.mail.backends.console.EmailBackend"
-)
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+
+ANYMAIL = {
+    "RESEND_API_KEY": env("RESEND_API_KEY", default=""),
+}
+
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+
 
 USE_CLOUD_STORAGE = env.bool("USE_CLOUD_STORAGE", default=False)
 

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Finance{% endblock %} | BudgetAI</title>
-    <link rel="stylesheet" href="{% static 'finance/style.css' %}">
+    <link rel="stylesheet" href="{% static 'finance/style.css' %}?v=5">
 </head>
 <body>
     <div class="finance-shell">
@@ -43,7 +43,9 @@
                     </a>
                 {% endif %}
                 <a class="sidebar-link" href="{% url 'finance:financial_report' club_id=club.id %}">Reports</a>
-                <span class="sidebar-link coming-soon">AI assistant</span>
+                <a class="sidebar-link" href="{% url 'finance:ai_chat_page' club_id=club.id %}">
+                    AI assistant
+                </a>
 
                 <a class="sidebar-link" href="{% url 'club_details' club.id %}">
                     Club members

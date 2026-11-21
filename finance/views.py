@@ -1,5 +1,12 @@
 from django.shortcuts import get_object_or_404, render,redirect
-from .models import ExpenseRequest,MoneyTransaction,FinanceNotification,FinanceReport,ReceiptDraft
+from .models import (
+    ExpenseRequest,
+    MoneyTransaction,
+    FinanceNotification,
+    FinanceReport,
+    ReceiptDraft,
+    FinanceChatMessage,
+)
 from .forms import FinanceRequestForm,SetLimitRequest,IncomeSubmissionForm,ReceiptDraftUploadForm,ReceiptConfirmForm
 from django.contrib.auth.decorators import login_required
 from clubs.models import Membership
@@ -13,13 +20,16 @@ from django.db.models import Q,Sum,Count
 from django.db import transaction
 from django.core.mail import send_mail
 from datetime import timedelta
-from django.http import HttpResponse
+from django.http import HttpResponse,JsonResponse
 from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.core.files.base import ContentFile
 from django.http import FileResponse,Http404
 from .service.ai_service import extract_receipt_details
 import logging
+from .service.chat_service import answer_finance_question
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -169,30 +179,26 @@ def review_expense(request,club_id,expense_id):
             f"Expense request #{expense.id} has been {decision.lower()} successfully."
         )
 
-        decision_text=expense.get_status_display()
-
-        if expense.submitted_by.email:
-            try:
-                send_mail(
-                    subject=f"Expense request {decision_text.lower()}: {expense.title}",
-                    message=(
-                        f"Your request for {expense.amount} at {expense.club.name} "
-                        f"was {decision_text.lower()}."
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[expense.submitted_by.email],
-                )
-            except Exception:
-                logger.exception(
-                    "Could not email submitter for expense %s", expense.id
-                )
-
-                messages.warning(
-                    request,
-                    "Your expense request was submitted, but the email notification could not be sent.",
-                )
-            else:
-                messages.success(request, "Your expense request was submitted.")
+    decision_text = expense.get_status_display()
+    if expense.submitted_by.email:
+        try:
+            send_mail(
+                subject=f"Expense request {decision_text.lower()}: {expense.title}",
+                message=(
+                    f"Your request for {expense.amount} at {expense.club.name} "
+                    f"was {decision_text.lower()}."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[expense.submitted_by.email],
+            )
+        except Exception:
+            logger.exception(
+                "Could not email submitter for expense %s", expense.id
+            )
+            messages.warning(
+                request,
+                "The review decision was saved, but its email notification could not be sent.",
+            )
 
 
     return redirect("finance:dashboard",club_id=club_id)
@@ -223,6 +229,12 @@ def transaction_history(request,club_id):
     membership=get_object_or_404(Membership.objects.select_related("club"),club_id=club_id,user=request.user)
 
     transactions=(MoneyTransaction.objects.filter(club=membership.club).select_related("recorded_by","expense_request"))
+
+    if membership.role == Membership.Role.MEMBER:
+        transactions = transactions.filter(
+            expense_request__submitted_by=request.user,
+            transaction_type=MoneyTransaction.Type.EXPENSE,
+        )
 
     total=transactions.aggregate(
         total_income=Sum("amount",filter=Q(transaction_type=MoneyTransaction.Type.INCOME)),
@@ -317,6 +329,9 @@ def financial_report(request, club_id):
         club_id=club_id,
         user=request.user,
     )
+
+    if membership.role == Membership.Role.MEMBER:
+        raise PermissionDenied
 
     period = request.GET.get("period", "month")
     today = timezone.localdate()
@@ -632,60 +647,59 @@ def confirm_receipt(request, club_id, draft_id):
                 .select_related("user")
             )
 
-        with transaction.atomic():
-            expense = form.save(commit=False)
-            expense.club = membership.club
-            expense.submitted_by = request.user
+            with transaction.atomic():
+                expense = form.save(commit=False)
+                expense.club = membership.club
+                expense.submitted_by = request.user
 
-            # Reuse the receipt file already uploaded with this draft.
-            expense.receipt.name = draft.file.name
-            expense.save()
+                # Reuse the receipt file already uploaded with this draft.
+                expense.receipt.name = draft.file.name
+                expense.save()
 
-            draft.expense_request = expense
-            draft.save(update_fields=["expense_request"])
+                draft.expense_request = expense
+                draft.save(update_fields=["expense_request"])
 
+                for reviewer in reviewers:
+                    if reviewer.user_id == request.user.id:
+                        continue
+
+                    FinanceNotification.objects.create(
+                        recipient=reviewer.user,
+                        expense_request=expense,
+                        message=f"New expense request: {expense.title}",
+                    )
+
+            email_failed = False
             for reviewer in reviewers:
-                if reviewer.user_id == request.user.id:
+                if reviewer.user_id == request.user.id or not reviewer.user.email:
                     continue
 
-                FinanceNotification.objects.create(
-                    recipient=reviewer.user,
-                    expense_request=expense,
-                    message=f"New expense request: {expense.title}",
+                try:
+                    send_mail(
+                        subject=f"New finance expense request for {membership.club.name}",
+                        message=(
+                            f"{request.user.email} submitted {expense.title} "
+                            f"for {expense.amount}. Please sign in to review it."
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[reviewer.user.email],
+                    )
+                except Exception:
+                    email_failed = True
+                    logger.exception(
+                        "Could not email reviewer for expense %s",
+                        expense.id,
+                    )
+
+            if email_failed:
+                messages.warning(
+                    request,
+                    "Your expense request was submitted, but an email notification could not be sent.",
                 )
+            else:
+                messages.success(request, "Expense request submitted for review.")
 
-        email_failed = False
-
-        for reviewer in reviewers:
-            if reviewer.user_id == request.user.id or not reviewer.user.email:
-                continue
-
-            try:
-                send_mail(
-                    subject=f"New finance expense request for {membership.club.name}",
-                    message=(
-                        f"{request.user.email} submitted {expense.title} "
-                        f"for {expense.amount}. Please sign in to review it."
-                    ),
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[reviewer.user.email],
-                )
-            except Exception:
-                email_failed = True
-                logger.exception(
-                    "Could not email reviewer for expense %s",
-                    expense.id,
-                )
-
-        if email_failed:
-            messages.warning(
-                request,
-                "Your expense request was submitted, but an email notification could not be sent.",
-            )
-        else:
-            messages.success(request, "Expense request submitted for review.")
-
-        return redirect("finance:dashboard", club_id=club_id)
+            return redirect("finance:dashboard", club_id=club_id)
     else:
         extracted = draft.extracted_data or {}
         form = ReceiptConfirmForm(initial={
@@ -707,8 +721,97 @@ def confirm_receipt(request, club_id, draft_id):
         },
     )
 
-    
+@login_required
+@require_POST
+def ai_chat(request, club_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
 
+    question = request.POST.get("question", "").strip()
+
+    if not question:
+        return JsonResponse({"error": "Enter a question first."}, status=400)
+
+    if len(question) > 1000:
+        return JsonResponse(
+            {"error": "Keep your question under 1000 characters."},
+            status=400,
+        )
+
+    previous_messages = list(
+        FinanceChatMessage.objects
+        .filter(club=membership.club, user=request.user)
+        .order_by("-created_at", "-id")[:10]
+    )
+    previous_messages.reverse()
+
+    # Keep each member's conversation private to this club and account.
+    FinanceChatMessage.objects.create(
+        club=membership.club,
+        user=request.user,
+        role=FinanceChatMessage.Role.USER,
+        content=question,
+    )
+
+    history = [
+        {"role": message.role, "content": message.content}
+        for message in previous_messages
+    ]
+
+    try:
+        result = answer_finance_question(question, membership, history=history)
+    except Exception:
+        logger.exception("Finance chatbot failed for club %s", club_id)
+        FinanceChatMessage.objects.create(
+            club=membership.club,
+            user=request.user,
+            role=FinanceChatMessage.Role.ASSISTANT,
+            content="The finance assistant is temporarily unavailable. Please try again.",
+        )
+        return JsonResponse(
+            {"error": "The finance assistant is temporarily unavailable. Please try again."},
+            status=503,
+        )
+
+    FinanceChatMessage.objects.create(
+        club=membership.club,
+        user=request.user,
+        role=FinanceChatMessage.Role.ASSISTANT,
+        content=result["answer"],
+    )
+
+    return JsonResponse({
+        "question": question,
+        **result,
+    })
+
+@login_required
+def ai_chat_page(request,club_id):
+    membership = get_object_or_404(
+        Membership.objects.select_related("club"),
+        club_id=club_id,
+        user=request.user,
+    )
+
+    chat_messages = list(
+        FinanceChatMessage.objects
+        .filter(club=membership.club, user=request.user)
+        .order_by("-created_at", "-id")[:100]
+    )
+    chat_messages.reverse()
+
+    return render(
+        request,
+        "finance/ai_chat.html",
+        {
+            "club": membership.club,
+            "membership": membership,
+            "chat_messages": chat_messages,
+        },
+    )
 
 
 

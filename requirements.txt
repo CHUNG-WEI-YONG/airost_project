@@ -6,3 +6,4 @@ django-storages[s3]==1.14.6
 openai
 whitenoise>=6.8.0
 gunicorn>=23.0.0
+django-anymail[resend]

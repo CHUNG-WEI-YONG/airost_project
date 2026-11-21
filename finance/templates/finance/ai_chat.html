@@ -1,0 +1,125 @@
+{% extends "finance/base.html" %}
+
+{% block title %}AI assistant | {{ club.name }}{% endblock %}
+
+{% block content %}
+<section class="chat-page">
+    <header class="chat-heading">
+        <div class="chat-avatar">B</div>
+        <div>
+            <p class="eyebrow">{{ club.name }} · FINANCE</p>
+            <h1>BudgetAI assistant</h1>
+            <p>Ask about this club’s finance records.</p>
+        </div>
+    </header>
+
+    <div class="chat-window">
+        <div id="chat-log" class="chat-messages" aria-live="polite">
+            {% for message in chat_messages %}
+                <article class="chat-message
+                    {% if message.role == 'user' %}chat-message-user{% else %}chat-message-assistant{% endif %}">
+                    <span class="chat-sender">
+                        {% if message.role == "user" %}You{% else %}BudgetAI{% endif %}
+                    </span>
+                    <p>{{ message.content|linebreaksbr }}</p>
+                    <time datetime="{{ message.created_at|date:'c' }}">{{ message.created_at|date:"M j, g:i A" }}</time>
+                </article>
+            {% empty %}
+                <article class="chat-message chat-message-assistant">
+                    <span class="chat-sender">BudgetAI</span>
+                    <p>Hi! Ask me about your club’s expense requests and transactions.</p>
+                </article>
+            {% endfor %}
+        </div>
+
+        <p id="chat-status" class="chat-status" role="status"></p>
+
+        <form id="chat-form"
+              class="chat-composer"
+              method="post"
+              action="{% url 'finance:ai_chat' club_id=club.id %}">
+            {% csrf_token %}
+            <label class="visually-hidden" for="question">Your question</label>
+            <textarea id="question"
+                      name="question"
+                      rows="1"
+                      maxlength="1000"
+                      placeholder="Write a finance question..."
+                      required></textarea>
+            <button id="ask-button" type="submit">Send</button>
+        </form>
+    </div>
+</section>
+
+<script>
+    const form = document.getElementById("chat-form");
+    const log = document.getElementById("chat-log");
+    const statusText = document.getElementById("chat-status");
+    const button = document.getElementById("ask-button");
+    const questionInput = document.getElementById("question");
+
+    function addMessage(sender, text, isUser) {
+        const bubble = document.createElement("article");
+        bubble.className = isUser
+            ? "chat-message chat-message-user"
+            : "chat-message chat-message-assistant";
+
+        const senderLabel = document.createElement("span");
+        senderLabel.className = "chat-sender";
+        senderLabel.textContent = sender;
+
+        const messageText = document.createElement("p");
+        messageText.textContent = text;
+
+        const timestamp = document.createElement("time");
+        timestamp.dateTime = new Date().toISOString();
+        timestamp.textContent = new Intl.DateTimeFormat([], {
+            month: "short", day: "numeric", hour: "numeric", minute: "2-digit"
+        }).format(new Date());
+
+        bubble.append(senderLabel, messageText, timestamp);
+        log.appendChild(bubble);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    log.scrollTop = log.scrollHeight;
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        // Capture the enabled form fields before disabling the textarea.
+        const formData = new FormData(form);
+        button.disabled = true;
+        questionInput.disabled = true;
+        statusText.textContent = "BudgetAI is thinking…";
+
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Your question could not be sent.");
+            }
+
+            addMessage("You", result.question, true);
+            addMessage("BudgetAI", result.answer, false);
+
+            questionInput.value = "";
+            statusText.textContent = "";
+        } catch (error) {
+            statusText.textContent = error.message;
+        } finally {
+            button.disabled = false;
+            questionInput.disabled = false;
+            questionInput.focus();
+        }
+    });
+</script>
+{% endblock %}
