@@ -129,6 +129,7 @@ def review_expense(request,club_id,expense_id):
     if membership.role!=Membership.Role.PRESIDENT and membership.role!=Membership.Role.TREASURER:
         raise PermissionDenied
 
+
     expense=get_object_or_404(ExpenseRequest,id=expense_id,club=membership.club,status=ExpenseRequest.Status.PENDING)
 
     decision=request.POST.get("decision")
@@ -140,6 +141,10 @@ def review_expense(request,club_id,expense_id):
         and expense.amount>membership.club.transaction_approval_limit):
         messages.error(request,"This request is above your approval limit and needs the president to review it.",)
         return redirect("finance:dashboard",club_id=club_id)
+
+    if expense.submitted_by_id == request.user.id:
+        messages.error(request, "You cannot review your own expense request.")
+        return redirect("finance:dashboard", club_id=club_id)
 
     with transaction.atomic():
         expense.status = decision

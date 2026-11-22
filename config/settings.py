@@ -55,7 +55,6 @@ INSTALLED_APPS = [
     'clubs',
     'finance',
     'storages',
-    'anymail'
 ]
 
 MIDDLEWARE = [
@@ -157,13 +156,18 @@ AUTH_USER_MODEL = "account.User"
 LOGIN_URL = 'login'
 
 
-EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
-
-ANYMAIL = {
-    "RESEND_API_KEY": env("RESEND_API_KEY", default=""),
-}
-
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
 
 
 USE_CLOUD_STORAGE = env.bool("USE_CLOUD_STORAGE", default=False)
