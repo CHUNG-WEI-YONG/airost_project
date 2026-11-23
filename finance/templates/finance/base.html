@@ -27,9 +27,13 @@
                    href="{% url 'finance:dashboard' club_id=club.id %}">
                     Overview
                 </a>
-                <a class="sidebar-link"
-                    href="{% url 'finance:notifications' club_id=club.id %}">
+               <a class="sidebar-link{% if request.resolver_match.url_name == 'notifications' %} active{% endif %}"
+                href="{% url 'finance:notifications' club_id=club.id %}">
                     Notifications
+                    {% if unread_notification_count %}
+                        <span class="notification-dot"
+                            aria-label="{{ unread_notification_count }} unread notifications"></span>
+                    {% endif %}
                 </a>
 
                 <a class="sidebar-link"

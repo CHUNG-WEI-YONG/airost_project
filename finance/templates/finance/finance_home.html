@@ -58,6 +58,16 @@
                         {% endif %}
                     </div>
 
+                    {% if item.reviewed_comment %}
+                        <div class="review-comment">
+                            <strong>
+                                Review comment
+                                {% if item.reviewed_by %}from {{ item.reviewed_by.email }}{% endif %}
+                            </strong>
+                            <p>{{ item.reviewed_comment|linebreaksbr }}</p>
+                        </div>
+                    {% endif %}
+
                     {% if item.status == "pending" and item.submitted_by == request.user %}
                         <form method="post"
                             action="{% url 'finance:cancel_expense' club_id=club.id expense_id=item.id %}">

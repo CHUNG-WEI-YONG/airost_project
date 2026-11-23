@@ -323,6 +323,16 @@ def notification_list(request,club_id):
             expense_request__club=membership.club
         ).select_related("recipient", "expense_request")
 
+    notification_filter = {
+    "recipient": request.user,
+    "expense_request__club": membership.club,
+}
+
+    FinanceNotification.objects.filter(
+        **notification_filter,
+        is_read=False,
+    ).update(is_read=True)
+
     return render(request,"finance/notifications.html",
                   {"club":membership.club,"membership":membership,"notifications":notifications})
 
