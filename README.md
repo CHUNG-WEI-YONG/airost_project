@@ -1,8 +1,16 @@
 # BudgetAI — Club Budget and Expense Tracker
 
+This is the submission of **Team BudgetAI** to the AIROST internship project.
+
+## Team BudgetAI
+
+- CHUNG WEI YONG
+
+## Introduction
+
 BudgetAI is a Django website for student clubs and campus societies. It gives each club a private finance workspace where members submit expenses, club officers review them, and approved money movements are kept in a shared ledger.
 
-## What the website does
+## Main Functions
 
 - **Accounts and clubs:** Users register and sign in. A user can belong to several clubs and create clubs; the creator becomes that club’s President.
 - **Club roles:** Each club assigns a President, Treasurer, and Members. Server-side views check club membership and role before allowing sensitive actions.
@@ -15,6 +23,16 @@ BudgetAI is a Django website for student clubs and campus societies. It gives ea
 - **Finance assistant:** The chatbot answers questions about the current club’s records, declines unrelated questions, and stores each user’s chat history privately per club. Members’ answers are limited to the requests and transactions they are allowed to see.
 
 AI features need a compatible API key and may incur provider charges. Without AI credentials, the rest of the site can still be used, but receipt reading and chat will return an unavailable message.
+
+## Demo
+
+BudgetAI is hosted on Railway. Try the [BudgetAI demo](https://airostproject-production.up.railway.app).
+
+This is a demonstration website. Please do not enter sensitive or real financial information.
+
+## Frontend and Backend
+
+The project is a Django application. Python and Django handle the backend, including accounts, role permissions, finance workflows, database operations, and integrations. The frontend is built with Django templates, HTML, CSS, and JavaScript. The source code is organized into Django apps in this repository.
 
 ## Technology
 
