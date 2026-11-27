@@ -34,6 +34,40 @@ from .service.chat_service import answer_finance_question
 logger = logging.getLogger(__name__)
 
 
+def _send_notification_email(notification, subject, body):
+    """Send an email and persist its outcome on the in-app notification."""
+    recipient_email = notification.recipient.email
+    if not recipient_email:
+        notification.email_status = FinanceNotification.EmailStatus.SKIPPED
+        notification.save(update_fields=["email_status"])
+        return False
+
+    try:
+        sent_count = send_mail(
+            subject=subject,
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+        success = sent_count == 1
+    except Exception:
+        logger.exception(
+            "Could not email notification %s for expense %s",
+            notification.id,
+            notification.expense_request_id,
+        )
+        success = False
+
+    notification.email_status = (
+        FinanceNotification.EmailStatus.SENT
+        if success
+        else FinanceNotification.EmailStatus.FAILED
+    )
+    notification.save(update_fields=["email_status"])
+    return success
+
+
 # Create your views here.
 
 @login_required
@@ -85,32 +119,35 @@ def expenses_create(request,club_id):
                     ],
                 ).select_related("user")
             
+            email_failed = False
             for reviewer in reviewers:
                 if reviewer.user_id == request.user.id:
                     continue
 
-                FinanceNotification.objects.create(
+                notification = FinanceNotification.objects.create(
                     recipient=reviewer.user,
                     expense_request=expense,
                     message=f"New expense request: {expense.title}",
                 )
 
-                if reviewer.user.email:
-                    try:
-                        send_mail(
-                            subject=f"New finance expense request for {membership.club.name}",
-                            message=(
-                                f"{request.user.email} submitted {expense.title} "
-                                f"for {expense.amount}. Please sign in to review it."
-                            ),
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            recipient_list=[reviewer.user.email],
-                        )
-                    except Exception:
-                        logger.exception(
-                            "Could not email reviewer for expense %s", expense.id
-                        )
-            
+                sent = _send_notification_email(
+                    notification,
+                    subject=f"New finance expense request for {membership.club.name}",
+                    body=(
+                        f"{request.user.email} submitted {expense.title} "
+                        f"for {expense.amount}. Please sign in to review it."
+                    ),
+                )
+                email_failed = email_failed or not sent
+
+            if email_failed:
+                messages.warning(
+                    request,
+                    "The expense request was saved and in-app notifications were created, "
+                    "but at least one email could not be sent. Check Notifications for status.",
+                )
+            else:
+                messages.success(request, "Expense request submitted for review.")
 
             return redirect('finance:dashboard',club_id=club_id)
 
@@ -173,7 +210,7 @@ def review_expense(request,club_id,expense_id):
                 },
             )
 
-        FinanceNotification.objects.create(
+        notification = FinanceNotification.objects.create(
             recipient=expense.submitted_by,
             expense_request=expense,
             message=f"Your expense request '{expense.title}' was {expense.get_status_display().lower()}.",
@@ -185,25 +222,20 @@ def review_expense(request,club_id,expense_id):
         )
 
     decision_text = expense.get_status_display()
-    if expense.submitted_by.email:
-        try:
-            send_mail(
-                subject=f"Expense request {decision_text.lower()}: {expense.title}",
-                message=(
-                    f"Your request for {expense.amount} at {expense.club.name} "
-                    f"was {decision_text.lower()}."
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[expense.submitted_by.email],
-            )
-        except Exception:
-            logger.exception(
-                "Could not email submitter for expense %s", expense.id
-            )
-            messages.warning(
-                request,
-                "The review decision was saved, but its email notification could not be sent.",
-            )
+    email_sent = _send_notification_email(
+        notification,
+        subject=f"Expense request {decision_text.lower()}: {expense.title}",
+        body=(
+            f"Your request for {expense.amount} at {expense.club.name} "
+            f"was {decision_text.lower()}."
+        ),
+    )
+    if not email_sent:
+        messages.warning(
+            request,
+            "The review decision was saved, but its email could not be sent. "
+            "The notification page will keep the delivery status.",
+        )
 
 
     return redirect("finance:dashboard",club_id=club_id)
@@ -674,42 +706,34 @@ def confirm_receipt(request, club_id, draft_id):
                 draft.expense_request = expense
                 draft.save(update_fields=["expense_request"])
 
+                reviewer_notifications = []
                 for reviewer in reviewers:
                     if reviewer.user_id == request.user.id:
                         continue
 
-                    FinanceNotification.objects.create(
+                    reviewer_notifications.append(FinanceNotification.objects.create(
                         recipient=reviewer.user,
                         expense_request=expense,
                         message=f"New expense request: {expense.title}",
-                    )
+                    ))
 
             email_failed = False
-            for reviewer in reviewers:
-                if reviewer.user_id == request.user.id or not reviewer.user.email:
-                    continue
-
-                try:
-                    send_mail(
-                        subject=f"New finance expense request for {membership.club.name}",
-                        message=(
-                            f"{request.user.email} submitted {expense.title} "
-                            f"for {expense.amount}. Please sign in to review it."
-                        ),
-                        from_email=settings.DEFAULT_FROM_EMAIL,
-                        recipient_list=[reviewer.user.email],
-                    )
-                except Exception:
-                    email_failed = True
-                    logger.exception(
-                        "Could not email reviewer for expense %s",
-                        expense.id,
-                    )
+            for notification in reviewer_notifications:
+                sent = _send_notification_email(
+                    notification,
+                    subject=f"New finance expense request for {membership.club.name}",
+                    body=(
+                        f"{request.user.email} submitted {expense.title} "
+                        f"for {expense.amount}. Please sign in to review it."
+                    ),
+                )
+                email_failed = email_failed or not sent
 
             if email_failed:
                 messages.warning(
                     request,
-                    "Your expense request was submitted, but an email notification could not be sent.",
+                    "Your expense request was submitted and in-app notifications were created, "
+                    "but at least one email could not be sent. Check Notifications for status.",
                 )
             else:
                 messages.success(request, "Expense request submitted for review.")

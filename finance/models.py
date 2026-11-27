@@ -103,6 +103,12 @@ class MoneyTransaction(models.Model):
 
 
 class FinanceNotification(models.Model):
+    class EmailStatus(models.TextChoices):
+        UNKNOWN = "unknown", "Not recorded"
+        SENT = "sent", "Email sent"
+        FAILED = "failed", "Email failed"
+        SKIPPED = "skipped", "No email address"
+
     recipient=models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -118,6 +124,11 @@ class FinanceNotification(models.Model):
     message=models.CharField(max_length=100)
     created_at=models.DateTimeField(auto_now_add=True)
     is_read=models.BooleanField(default=False)
+    email_status = models.CharField(
+        max_length=10,
+        choices=EmailStatus.choices,
+        default=EmailStatus.UNKNOWN,
+    )
 
     class Meta:
         ordering=["-created_at"]

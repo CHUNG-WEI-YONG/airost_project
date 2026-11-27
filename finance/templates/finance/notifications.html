@@ -16,6 +16,9 @@
         <article class="expense-card">
             <p>{{ notification.message }}</p>
             <small>{{ notification.created_at|date:"M j, Y, g:i a" }}</small>
+            <p class="email-delivery-status">
+                Email delivery: {{ notification.get_email_status_display }}
+            </p>
         </article>
     {% empty %}
         <section class="expense-empty">
